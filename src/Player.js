@@ -27,38 +27,47 @@ export class Player {
     document.addEventListener('keyup', (e) => this.onKeyUp(e));
     document.addEventListener('mousedown', (e) => this.onMouseDown(e));
 
-    this.setupLightning();
+    this.setupGun();
   }
 
-  setupLightning() {
-    // Add a bright light at camera position for muzzle flash effect
-    this.muzzleLight = new THREE.PointLight(0xff6600, 0, 50);
-    this.muzzleLight.position.set(0, 0, -1);
-    this.camera.add(this.muzzleLight);
-
-    // Create main muzzle flash mesh (larger and more visible)
-    const flashGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-    const flashMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
-      transparent: true,
-      opacity: 0,
-      emissive: 0xffaa00,
+  setupGun() {
+    // Create gun group and add to scene
+    this.gunGroup = new THREE.Group();
+    this.game.scene.add(this.gunGroup);
+    
+    // Gun body
+    const gunGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.5);
+    const gunMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x1a1a1a,
+      metalness: 0.9,
+      roughness: 0.1
     });
-    this.muzzleFlashMesh = new THREE.Mesh(flashGeometry, flashMaterial);
-    this.muzzleFlashMesh.position.set(0.1, -0.2, -1.5);
-    this.camera.add(this.muzzleFlashMesh);
+    const gunMesh = new THREE.Mesh(gunGeometry, gunMaterial);
+    gunMesh.castShadow = true;
+    this.gunGroup.add(gunMesh);
 
-    // Create secondary flash (orange core)
-    const coreGeometry = new THREE.SphereGeometry(0.3, 12, 12);
-    const coreMaterial = new THREE.MeshBasicMaterial({
+    // Gun barrel
+    const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 16);
+    const barrelMesh = new THREE.Mesh(barrelGeometry, gunMaterial);
+    barrelMesh.position.z = -0.3;
+    barrelMesh.rotation.x = Math.PI / 2;
+    barrelMesh.castShadow = true;
+    this.gunGroup.add(barrelMesh);
+
+    // Muzzle light
+    this.muzzleLight = new THREE.PointLight(0xff6600, 0, 40);
+    this.gunGroup.add(this.muzzleLight);
+
+    // Muzzle flash
+    const flashGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+    const flashMaterial = new THREE.MeshBasicMaterial({
       color: 0xffaa00,
       transparent: true,
       opacity: 0,
-      emissive: 0xff6600,
     });
-    this.muzzleFlashCore = new THREE.Mesh(coreGeometry, coreMaterial);
-    this.muzzleFlashCore.position.set(0.1, -0.2, -1.5);
-    this.camera.add(this.muzzleFlashCore);
+    this.muzzleFlashMesh = new THREE.Mesh(flashGeometry, flashMaterial);
+    this.muzzleFlashMesh.position.z = -0.5; // At barrel tip
+    this.gunGroup.add(this.muzzleFlashMesh);
   }
 
   lock() {
@@ -117,16 +126,14 @@ export class Player {
   }
 
   createMuzzleFlash() {
-    // Briefly increase light intensity
-    this.muzzleLight.intensity = 5;
-    this.muzzleFlashMesh.material.opacity = 1.0;
-    this.muzzleFlashCore.material.opacity = 0.8;
+    // Flash at barrel
+    this.muzzleLight.intensity = 3;
+    this.muzzleFlashMesh.material.opacity = 0.8;
 
     setTimeout(() => {
       this.muzzleLight.intensity = 0;
       this.muzzleFlashMesh.material.opacity = 0;
-      this.muzzleFlashCore.material.opacity = 0;
-    }, 150);
+    }, 120);
   }
 
   createBulletTracer(origin, direction) {
@@ -147,6 +154,14 @@ export class Player {
 
   update() {
     if (!this.isLocked) return;
+
+    // Update gun position relative to camera (in camera local space)
+    const gunOffset = new THREE.Vector3(0.3, -0.5, -0.8);
+    gunOffset.applyQuaternion(this.camera.quaternion);
+    
+    this.gunGroup.position.copy(this.camera.position);
+    this.gunGroup.position.add(gunOffset);
+    this.gunGroup.quaternion.copy(this.camera.quaternion);
 
     // Movement - only on horizontal plane, ignore camera vertical tilt
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
