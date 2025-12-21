@@ -10,6 +10,9 @@ scene.fog = new THREE.Fog(0x1a1a1a, 0, 500);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 1.7, 0);
 
+// Add camera to scene so its children (gun) are rendered
+scene.add(camera);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;

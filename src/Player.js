@@ -31,43 +31,47 @@ export class Player {
   }
 
   setupGun() {
-    // Create gun group and add to scene
+    // Create gun group and parent it directly to camera
     this.gunGroup = new THREE.Group();
-    this.game.scene.add(this.gunGroup);
     
-    // Gun body
-    const gunGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.5);
+    // Gun body - dark metallic material
+    const gunGeometry = new THREE.BoxGeometry(0.1, 0.08, 0.3);
     const gunMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a1a,
-      metalness: 0.9,
-      roughness: 0.1
+      color: 0x2a2a2a,  // Dark gunmetal
+      metalness: 0.8,
+      roughness: 0.3
     });
     const gunMesh = new THREE.Mesh(gunGeometry, gunMaterial);
-    gunMesh.castShadow = true;
     this.gunGroup.add(gunMesh);
 
     // Gun barrel
-    const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 16);
+    const barrelGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.25, 16);
     const barrelMesh = new THREE.Mesh(barrelGeometry, gunMaterial);
-    barrelMesh.position.z = -0.3;
+    barrelMesh.position.z = -0.2;
     barrelMesh.rotation.x = Math.PI / 2;
-    barrelMesh.castShadow = true;
     this.gunGroup.add(barrelMesh);
 
     // Muzzle light
     this.muzzleLight = new THREE.PointLight(0xff6600, 0, 40);
+    this.muzzleLight.position.z = -0.35;
     this.gunGroup.add(this.muzzleLight);
 
     // Muzzle flash
-    const flashGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+    const flashGeometry = new THREE.SphereGeometry(0.06, 8, 8);
     const flashMaterial = new THREE.MeshBasicMaterial({
       color: 0xffaa00,
       transparent: true,
       opacity: 0,
     });
     this.muzzleFlashMesh = new THREE.Mesh(flashGeometry, flashMaterial);
-    this.muzzleFlashMesh.position.z = -0.5; // At barrel tip
+    this.muzzleFlashMesh.position.z = -0.35;
     this.gunGroup.add(this.muzzleFlashMesh);
+    
+    // Position gun in bottom-right of screen, similar to reference implementation
+    this.gunGroup.position.set(0.15, -0.12, -0.3);
+    
+    // Add gun to camera so it follows view perfectly
+    this.camera.add(this.gunGroup);
   }
 
   lock() {
@@ -155,13 +159,7 @@ export class Player {
   update() {
     if (!this.isLocked) return;
 
-    // Update gun position relative to camera (in camera local space)
-    const gunOffset = new THREE.Vector3(0.3, -0.5, -0.8);
-    gunOffset.applyQuaternion(this.camera.quaternion);
-    
-    this.gunGroup.position.copy(this.camera.position);
-    this.gunGroup.position.add(gunOffset);
-    this.gunGroup.quaternion.copy(this.camera.quaternion);
+    // Gun is parented to camera, no manual update needed!
 
     // Movement - only on horizontal plane, ignore camera vertical tilt
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
