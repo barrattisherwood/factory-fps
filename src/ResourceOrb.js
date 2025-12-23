@@ -1,8 +1,17 @@
 import * as THREE from 'three';
+import { getResourceConfig } from './config/ammo.js';
 
 export class ResourceOrb {
-  constructor(x, y, z) {
+  constructor(x, y, z, resourceType = 'metal', amount = 10) {
     this.position = new THREE.Vector3(x, y, z);
+    this.resourceType = resourceType;
+    this.amount = amount;
+    this.config = getResourceConfig(resourceType);
+    
+    // Store ammo type and amount for collection
+    this.ammoType = this.config.ammoType;
+    this.ammoAmount = this.config.ammoAmount;
+    
     this.velocity = new THREE.Vector3(0, 0, 0);
     this.bobAmount = 0;
     this.bobSpeed = 0.1;
@@ -15,11 +24,11 @@ export class ResourceOrb {
   }
 
   createMesh() {
-    // Create glowing cyan orb
+    // Create glowing orb with config colors
     const geometry = new THREE.SphereGeometry(0.5, 32, 32);
     const material = new THREE.MeshStandardMaterial({
-      color: 0x00ffff,
-      emissive: 0x00ccff,
+      color: this.config.color,
+      emissive: this.config.emissiveColor,
       emissiveIntensity: 0.8,
       metalness: 0.3,
       roughness: 0.1,
@@ -28,8 +37,8 @@ export class ResourceOrb {
     this.mesh.position.copy(this.position);
     this.mesh.castShadow = true;
 
-    // Add point light
-    this.light = new THREE.PointLight(0x00ffff, 1, 15);
+    // Add point light with config color
+    this.light = new THREE.PointLight(this.config.lightColor, 1, 15);
     this.light.position.copy(this.position);
     this.mesh.add(this.light);
 

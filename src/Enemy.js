@@ -1,11 +1,15 @@
 import * as THREE from 'three';
 import { ResourceOrb } from './ResourceOrb.js';
+import { getEnemyConfig } from './config/enemies.js';
 
 export class Enemy {
-  constructor(x, y, z) {
+  constructor(x, y, z, type = 'standard') {
     this.position = new THREE.Vector3(x, y, z);
-    this.hp = 100;
-    this.maxHp = 100;
+    this.type = type;
+    this.config = getEnemyConfig(type);
+    
+    this.hp = this.config.hp;
+    this.maxHp = this.config.hp;
     this.isDead = false;
     this.flashTimer = 0;
     this.flashDuration = 0;
@@ -15,23 +19,24 @@ export class Enemy {
   }
 
   createMesh() {
-    // Create enemy geometry (box with metallic grey color)
-    const geometry = new THREE.BoxGeometry(1.5, 3, 1.5);
+    // Create enemy geometry from config
+    const size = this.config.size;
+    const geometry = new THREE.BoxGeometry(size.width, size.height, size.depth);
     const material = new THREE.MeshStandardMaterial({
-      color: 0x444444,
-      metalness: 0.8,
-      roughness: 0.2,
+      color: this.config.color,
+      metalness: this.config.metalness,
+      roughness: this.config.roughness,
     });
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.position.copy(this.position);
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
 
-    // Add glowing core (red sphere at center)
-    const coreGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+    // Add glowing core from config
+    const coreGeometry = new THREE.SphereGeometry(this.config.coreSize, 16, 16);
     const coreMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff0000,
-      emissive: 0xff3333,
+      color: this.config.coreColor,
+      emissive: this.config.coreEmissive,
       emissiveIntensity: 0.5,
     });
     this.core = new THREE.Mesh(coreGeometry, coreMaterial);
@@ -39,14 +44,18 @@ export class Enemy {
     this.mesh.add(this.core);
   }
 
-  takeDamage(amount) {
+  takeDamage(amount, damageType = 'kinetic') {
     if (this.isDead) return;
 
-    this.hp -= amount;
+    // Apply weakness multiplier from config
+    const weakness = this.config.weaknesses[damageType] || 1.0;
+    const finalDamage = amount * weakness;
+
+    this.hp -= finalDamage;
     this.flashTimer = 0;
     this.flashDuration = 200; // milliseconds
 
-    console.log(`Enemy HP: ${this.hp}`);
+    console.log(`Enemy [${this.config.name}] HP: ${Math.round(this.hp)}/${this.maxHp} (${damageType} x${weakness})`);
 
     if (this.hp <= 0) {
       this.die();
@@ -55,12 +64,12 @@ export class Enemy {
 
   die() {
     this.isDead = true;
-    console.log('Enemy defeated!');
-    const orb = this.createExplosion();
+    console.log(`Enemy [${this.config.name}] defeated!`);
+    const orbs = this.createExplosion();
     
-    // Trigger death callback with orb
+    // Trigger death callback with orbs
     if (this.onDeath) {
-      this.onDeath(orb);
+      orbs.forEach(orb => this.onDeath(orb));
     }
   }
 
@@ -100,9 +109,23 @@ export class Enemy {
       updateParticle();
     }
 
-    // Spawn resource orb
-    const orb = new ResourceOrb(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
-    return orb;
+    // Spawn resource orbs based on config drops
+    const orbs = [];
+    this.config.drops.forEach(drop => {
+      // Roll for drop chance
+      if (Math.random() <= drop.chance) {
+        const orb = new ResourceOrb(
+          this.mesh.position.x,
+          this.mesh.position.y,
+          this.mesh.position.z,
+          drop.type,
+          drop.amount
+        );
+        orbs.push(orb);
+      }
+    });
+
+    return orbs;
   }
 
   getMesh() {

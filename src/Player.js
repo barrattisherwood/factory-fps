@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { ObjectPool } from './core/ObjectPool.js';
 
 export class Player {
   constructor(camera, game) {
     this.camera = camera;
     this.game = game;
-    this.ammo = 50;
     this.moveSpeed = 0.1;
     this.keys = {};
     this.velocity = new THREE.Vector3();
@@ -15,6 +15,30 @@ export class Player {
     this.eyeHeight = 1.7; // Player eye height above ground
     this.canJump = true; // Can only jump once per ground contact
     this.spacePressed = false; // Track if space was pressed last frame
+
+    // Setup bullet tracer pool (performance optimization)
+    this.bulletPool = new ObjectPool(
+      // Create function
+      () => {
+        const geometry = new THREE.BufferGeometry();
+        const material = new THREE.LineBasicMaterial({
+          transparent: true,
+          opacity: 0.6,
+          linewidth: 2
+        });
+        const line = new THREE.Line(geometry, material);
+        line.visible = false;
+        return line;
+      },
+      // Reset function
+      (line) => {
+        line.visible = false;
+        if (this.game.scene.children.includes(line)) {
+          this.game.scene.remove(line);
+        }
+      },
+      50 // Pre-create 50 bullet tracers
+    );
 
     // Setup pointer lock controls
     this.controls = new PointerLockControls(camera, document.body);
@@ -99,16 +123,22 @@ export class Player {
   }
 
   shoot() {
-    if (this.ammo <= 0) {
+    // Check ammo via AmmoManager
+    if (!this.game.ammoManager.hasAmmo()) {
       console.log('No ammo!');
       return;
     }
 
-    this.ammo--;
-    this.game.ui.updateAmmo(this.ammo);
+    // Consume ammo through manager (emits event automatically)
+    if (!this.game.ammoManager.consume()) {
+      return;
+    }
+
+    // Get current ammo config for visual effects
+    const ammoConfig = this.game.ammoManager.getCurrentConfig();
 
     // Muzzle flash
-    this.createMuzzleFlash();
+    this.createMuzzleFlash(ammoConfig);
 
     // Raycast for hit detection
     const raycaster = new THREE.Raycaster();
@@ -116,43 +146,67 @@ export class Player {
     direction.applyQuaternion(this.camera.quaternion);
     raycaster.set(this.camera.position, direction);
 
+    // Debug visualization
+    if (this.game.debug.enabled) {
+      this.game.debug.drawRay(this.camera.position, direction, 100, ammoConfig.color);
+    }
+
     const hits = raycaster.intersectObjects(this.game.enemies.map(e => e.getMesh()));
     if (hits.length > 0) {
       const hitEnemy = this.game.enemies.find(e => e.getMesh() === hits[0].object);
       if (hitEnemy) {
         console.log('Hit enemy!');
-        hitEnemy.takeDamage(25);
+        
+        // Debug hit point
+        if (this.game.debug.enabled) {
+          this.game.debug.drawPoint(hits[0].point, 0x00ff00, 0.3);
+        }
+        
+        // Use ammo config damage
+        hitEnemy.takeDamage(ammoConfig.damage, ammoConfig.type);
       }
     }
 
-    // Create bullet tracer line
-    this.createBulletTracer(this.camera.position, direction);
+    // Create bullet tracer line using object pool
+    this.createBulletTracer(this.camera.position, direction, ammoConfig);
+    
+    // Emit weapon fired event
+    this.game.events.emit('weapon:fired', {
+      type: ammoConfig.type,
+      damage: ammoConfig.damage,
+      position: this.camera.position.clone()
+    });
   }
 
-  createMuzzleFlash() {
-    // Flash at barrel
-    this.muzzleLight.intensity = 3;
+  createMuzzleFlash(ammoConfig) {
+    // Flash at barrel with config colors
+    this.muzzleLight.intensity = ammoConfig.flashIntensity;
+    this.muzzleLight.color.setHex(ammoConfig.color);
     this.muzzleFlashMesh.material.opacity = 0.8;
+    this.muzzleFlashMesh.material.color.setHex(ammoConfig.glowColor);
 
     setTimeout(() => {
       this.muzzleLight.intensity = 0;
       this.muzzleFlashMesh.material.opacity = 0;
-    }, 120);
+    }, ammoConfig.flashDuration);
   }
 
-  createBulletTracer(origin, direction) {
+  createBulletTracer(origin, direction, ammoConfig) {
     const distance = 100;
     const endPoint = origin.clone().add(direction.clone().multiplyScalar(distance));
 
-    const geometry = new THREE.BufferGeometry().setFromPoints([origin, endPoint]);
-    const material = new THREE.LineBasicMaterial({ color: 0xffaa00, linewidth: 2, transparent: true, opacity: 0.6 });
-    const line = new THREE.Line(geometry, material);
+    // Get bullet from pool
+    const line = this.bulletPool.get();
+    const points = [origin.clone(), endPoint];
+    line.geometry.setFromPoints(points);
+    line.material.color.setHex(ammoConfig.trailColor);
+    line.visible = true;
 
     this.game.scene.add(line);
 
-    // Remove after a short duration
+    // Return to pool after a short duration
     setTimeout(() => {
-      this.game.scene.remove(line);
+      this.bulletPool.release(line);
     }, 100);
   }
 
@@ -206,10 +260,6 @@ export class Player {
     }
 
     this.camera.position.add(this.velocity);
-  }
-
-  addAmmo(amount) {
-    this.ammo += amount;
   }
 
   getGroup() {

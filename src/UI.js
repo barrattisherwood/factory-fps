@@ -1,17 +1,48 @@
 export class UI {
-  constructor() {
+  constructor(eventBus) {
+    this.eventBus = eventBus;
     this.ammoCounter = null;
     this.crosshair = null;
     this.victoryScreen = null;
 
     this.createUI();
+    this.setupEventListeners();
+  }
+
+  setupEventListeners() {
+    // Listen for ammo changes via EventBus (decoupled!)
+    this.eventBus.on('ammo:changed', (data) => {
+      this.updateAmmo(data.type, data.amount);
+    });
+
+    // Listen for ammo switching
+    this.eventBus.on('ammo:switched', (data) => {
+      this.updateAmmo(data.type, data.amount);
+      console.log(`UI: Switched to ${data.type}`);
+    });
+
+    // Listen for ammo state (initial load)
+    this.eventBus.on('ammo:state', (data) => {
+      this.updateAmmo(data.current, data.amounts[data.current]);
+    });
+
+    // Listen for empty ammo
+    this.eventBus.on('ammo:empty', (data) => {
+      this.flashAmmoCounter();
+    });
+
+    // Listen for resource changes (for later resource display)
+    this.eventBus.on('resource:changed', (data) => {
+      // Can add resource UI later
+      console.log(`UI: ${data.type} changed to ${data.amount}`);
+    });
   }
 
   createUI() {
     // Ammo counter
     this.ammoCounter = document.createElement('div');
     this.ammoCounter.id = 'ammo-counter';
-    this.ammoCounter.textContent = 'AMMO: 50';
+    this.ammoCounter.textContent = 'KINETIC: 50';
     this.ammoCounter.style.cssText = `
       position: fixed;
       top: 20px;
@@ -22,6 +53,7 @@ export class UI {
       font-family: 'Courier New', monospace;
       z-index: 100;
       text-shadow: 0 0 10px rgba(255, 153, 0, 0.5);
+      transition: color 0.2s;
     `;
     document.body.appendChild(this.ammoCounter);
 
@@ -63,8 +95,29 @@ export class UI {
     document.body.style.overflow = 'hidden';
   }
 
-  updateAmmo(ammo) {
-    this.ammoCounter.textContent = `AMMO: ${ammo}`;
+  updateAmmo(type, amount) {
+    const typeDisplay = type.toUpperCase();
+    this.ammoCounter.textContent = `${typeDisplay}: ${amount}`;
+    
+    // Change color based on ammo type
+    const colors = {
+      kinetic: '#ff9900',
+      flux: '#00aaff',
+      caustic: '#00ff00'
+    };
+    const color = colors[type] || '#ff9900';
+    this.ammoCounter.style.color = color;
+    this.ammoCounter.style.textShadow = `0 0 10px ${color}80`;
+  }
+
+  flashAmmoCounter() {
+    // Flash red when out of ammo
+    const originalColor = this.ammoCounter.style.color;
+    this.ammoCounter.style.color = '#ff0000';
+    
+    setTimeout(() => {
+      this.ammoCounter.style.color = originalColor;
+    }, 200);
   }
 
   showVictory() {
