@@ -12,11 +12,13 @@ export class ResourceOrb {
     this.ammoType = this.config.ammoType;
     this.ammoAmount = this.config.ammoAmount;
     
+    console.log(`Created ${resourceType} orb → ammoType: ${this.ammoType}, amount: ${this.ammoAmount}`);
+    
     this.velocity = new THREE.Vector3(0, 0, 0);
     this.bobAmount = 0;
     this.bobSpeed = 0.1;
-    this.attractionDistance = 5;
-    this.attractionForce = 0.02;
+    this.attractionDistance = 10;  // Increased from 5 for easier collection
+    this.attractionForce = 0.05;    // Increased from 0.02 for faster collection
     this.isFlyingToPlayer = false;
     this.collected = false;
 

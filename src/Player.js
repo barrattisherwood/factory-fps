@@ -109,7 +109,15 @@ export class Player {
   }
 
   onKeyDown(e) {
-    this.keys[e.key.toLowerCase()] = true;
+    const key = e.key.toLowerCase();
+    this.keys[key] = true;
+
+    // Ammo switching controls
+    if (key === '1') {
+      this.game.ammoManager.switchType('kinetic');
+    } else if (key === '2') {
+      this.game.ammoManager.switchType('flux');
+    }
   }
 
   onKeyUp(e) {

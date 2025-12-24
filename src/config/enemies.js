@@ -6,29 +6,30 @@ export const ENEMY_CONFIGS = {
   standard: {
     name: 'Standard Robot',
     hp: 100,
-    color: 0x444444,
+    color: 0x444444,          // Grey metallic
     coreColor: 0xff0000,
     coreEmissive: 0xff3333,
     metalness: 0.8,
     roughness: 0.2,
     size: { width: 1.5, height: 3, depth: 1.5 },
     coreSize: 0.4,
-    damage: 25, // Damage player takes per hit (for later)
-    speed: 0, // Movement speed (for later AI)
+    damage: 25,
+    speed: 0,
     drops: [
       { type: 'metal', amount: 10, chance: 1.0 }
     ],
     weaknesses: {
-      kinetic: 1.0, // Standard kinetic damage
-      flux: 1.5     // 50% more damage from flux
-    }
+      kinetic: 1.0,           // 100% damage (20 per shot)
+      flux: 0.5               // 50% damage (10 per shot)
+    },
+    hasShield: false
   },
 
   shielded: {
     name: 'Shielded Robot',
     hp: 150,
-    color: 0x2244aa,
-    coreColor: 0x0088ff,
+    color: 0x444444,          // Grey metallic with blue shield overlay
+    coreColor: 0x0088ff,      // Blue core
     coreEmissive: 0x0099ff,
     metalness: 0.9,
     roughness: 0.1,
@@ -37,14 +38,16 @@ export const ENEMY_CONFIGS = {
     damage: 30,
     speed: 0,
     drops: [
-      { type: 'energy', amount: 10, chance: 1.0 }
+      { type: 'energy', amount: 10, chance: 1.0 }  // Blue orb drops
     ],
     weaknesses: {
-      kinetic: 0.5, // Resistant to kinetic (50% damage)
-      flux: 1.0     // Normal flux damage
+      kinetic: 0.25,          // 25% damage - very resistant
+      flux: 1.0               // 100% damage (20 per shot)
     },
-    hasShield: true,
-    shieldResistance: 0.5 // 50% kinetic reduction
+    hasShield: true,          // Will show blue shield visual
+    shieldColor: 0x00aaff,    // Electric blue
+    shieldEmissive: 0x0088ff,
+    shieldIntensity: 0.6
   },
 
   heavy: {
@@ -64,8 +67,8 @@ export const ENEMY_CONFIGS = {
       { type: 'exotic', amount: 1, chance: 0.3 }
     ],
     weaknesses: {
-      kinetic: 0.7, // Armored against kinetic
-      flux: 1.2     // Slightly weak to flux
+      kinetic: 0.7,
+      flux: 1.2
     }
   }
 };

@@ -69,15 +69,24 @@ export class Game {
   }
 
   spawnEnemies() {
-    const enemyCount = 4;
+    // Phase 6: 3 standard + 2 shielded robots
+    const enemySpawns = [
+      // Standard robots (orange orb drops)
+      { type: 'standard', angle: 0 },
+      { type: 'standard', angle: Math.PI * 0.67 },
+      { type: 'standard', angle: Math.PI * 1.33 },
+      // Shielded robots (blue orb drops)
+      { type: 'shielded', angle: Math.PI * 1.67 },
+      { type: 'shielded', angle: Math.PI * 2.33 }
+    ];
+
     const spawnRadius = 30;
 
-    for (let i = 0; i < enemyCount; i++) {
-      const angle = (i / enemyCount) * Math.PI * 2;
-      const x = Math.cos(angle) * spawnRadius;
-      const z = Math.sin(angle) * spawnRadius;
+    enemySpawns.forEach((spawn, index) => {
+      const x = Math.cos(spawn.angle) * spawnRadius;
+      const z = Math.sin(spawn.angle) * spawnRadius;
 
-      const enemy = new Enemy(x, 1.5, z);
+      const enemy = new Enemy(x, 1.5, z, spawn.type);
       
       // Set death callback
       enemy.onDeath = (orb) => {
@@ -87,9 +96,9 @@ export class Game {
 
       this.enemies.push(enemy);
       this.scene.add(enemy.getMesh());
-    }
+    });
 
-    console.log(`Spawned ${enemyCount} enemies`);
+    console.log(`Spawned 3 standard robots + 2 shielded robots`);
   }
 
   addOrb(orb) {
@@ -156,10 +165,12 @@ export class Game {
           this.debug.drawSphere(orb.getMesh().position, 2, 0x00ffff);
         }
         
-        if (distance < 2) {
+        if (distance < 3) {  // Increased from 2 for easier collection
           // Add ammo based on orb type
           const ammoType = orb.ammoType || 'kinetic';
           const ammoAmount = orb.ammoAmount || 10;
+          
+          console.log(`Collecting orb: ${orb.resourceType} → ${ammoType} (+${ammoAmount})`);
           this.ammoManager.add(ammoType, ammoAmount);
           
           orb.collect();

@@ -1,7 +1,11 @@
 export class UI {
   constructor(eventBus) {
     this.eventBus = eventBus;
-    this.ammoCounter = null;
+    this.ammoDisplay = null;
+    this.kineticAmmoText = null;
+    this.fluxAmmoText = null;
+    this.currentAmmoType = 'kinetic';
+    this.ammoAmounts = { kinetic: 50, flux: 20, caustic: 0 }; // Match config starting values
     this.crosshair = null;
     this.victoryScreen = null;
 
@@ -10,52 +14,92 @@ export class UI {
   }
 
   setupEventListeners() {
+    // Listen for ammo state first (initial load)
+    this.eventBus.on('ammo:state', (data) => {
+      this.currentAmmoType = data.current;
+      this.ammoAmounts = data.amounts;
+      this.updateAmmoDisplay();
+      console.log('UI: Initial ammo state loaded', data.amounts);
+    });
+
     // Listen for ammo changes via EventBus (decoupled!)
     this.eventBus.on('ammo:changed', (data) => {
-      this.updateAmmo(data.type, data.amount);
+      console.log(`UI received ammo:changed - ${data.type}: ${data.amount}`);
+      this.ammoAmounts[data.type] = data.amount;
+      this.updateAmmoDisplay();
     });
 
     // Listen for ammo switching
     this.eventBus.on('ammo:switched', (data) => {
-      this.updateAmmo(data.type, data.amount);
+      this.currentAmmoType = data.type;
+      this.ammoAmounts[data.type] = data.amount;
+      this.updateAmmoDisplay();
       console.log(`UI: Switched to ${data.type}`);
-    });
-
-    // Listen for ammo state (initial load)
-    this.eventBus.on('ammo:state', (data) => {
-      this.updateAmmo(data.current, data.amounts[data.current]);
     });
 
     // Listen for empty ammo
     this.eventBus.on('ammo:empty', (data) => {
-      this.flashAmmoCounter();
+      this.flashAmmoDisplay();
     });
 
     // Listen for resource changes (for later resource display)
     this.eventBus.on('resource:changed', (data) => {
-      // Can add resource UI later
       console.log(`UI: ${data.type} changed to ${data.amount}`);
     });
   }
 
   createUI() {
-    // Ammo counter
-    this.ammoCounter = document.createElement('div');
-    this.ammoCounter.id = 'ammo-counter';
-    this.ammoCounter.textContent = 'KINETIC: 50';
-    this.ammoCounter.style.cssText = `
+    // Create ammo display container
+    this.ammoDisplay = document.createElement('div');
+    this.ammoDisplay.id = 'ammo-display';
+    this.ammoDisplay.style.cssText = `
       position: fixed;
       top: 20px;
       right: 20px;
-      font-size: 24px;
-      font-weight: bold;
-      color: #ff9900;
       font-family: 'Courier New', monospace;
       z-index: 100;
-      text-shadow: 0 0 10px rgba(255, 153, 0, 0.5);
-      transition: color 0.2s;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 15px 20px;
+      border: 2px solid #444;
+      border-radius: 5px;
     `;
-    document.body.appendChild(this.ammoCounter);
+
+    // Kinetic ammo line
+    this.kineticAmmoText = document.createElement('div');
+    this.kineticAmmoText.style.cssText = `
+      font-size: 20px;
+      font-weight: bold;
+      color: #ff6600;
+      margin-bottom: 8px;
+      text-shadow: 0 0 10px rgba(255, 102, 0, 0.6);
+      transition: all 0.2s;
+    `;
+    this.ammoDisplay.appendChild(this.kineticAmmoText);
+
+    // Flux ammo line
+    this.fluxAmmoText = document.createElement('div');
+    this.fluxAmmoText.style.cssText = `
+      font-size: 20px;
+      font-weight: bold;
+      color: #00aaff;
+      text-shadow: 0 0 10px rgba(0, 170, 255, 0.6);
+      transition: all 0.2s;
+    `;
+    this.ammoDisplay.appendChild(this.fluxAmmoText);
+
+    // Help text
+    const helpText = document.createElement('div');
+    helpText.style.cssText = `
+      font-size: 12px;
+      color: #888;
+      margin-top: 8px;
+      border-top: 1px solid #444;
+      padding-top: 8px;
+    `;
+    helpText.textContent = 'Press 1/2 to switch ammo';
+    this.ammoDisplay.appendChild(helpText);
+
+    document.body.appendChild(this.ammoDisplay);
 
     // Crosshair
     this.crosshair = document.createElement('div');
@@ -93,30 +137,42 @@ export class UI {
     // Remove default page styling
     document.body.style.margin = '0';
     document.body.style.overflow = 'hidden';
+
+    // Initial update
+    this.updateAmmoDisplay();
   }
 
-  updateAmmo(type, amount) {
-    const typeDisplay = type.toUpperCase();
-    this.ammoCounter.textContent = `${typeDisplay}: ${amount}`;
+  updateAmmoDisplay() {
+    // Kinetic line with active indicator
+    const kineticActive = this.currentAmmoType === 'kinetic' ? ' [ACTIVE]' : '';
+    this.kineticAmmoText.textContent = `KINETIC: ${this.ammoAmounts.kinetic}${kineticActive}`;
     
-    // Change color based on ammo type
-    const colors = {
-      kinetic: '#ff9900',
-      flux: '#00aaff',
-      caustic: '#00ff00'
-    };
-    const color = colors[type] || '#ff9900';
-    this.ammoCounter.style.color = color;
-    this.ammoCounter.style.textShadow = `0 0 10px ${color}80`;
+    // Scale up active ammo type for visibility
+    if (this.currentAmmoType === 'kinetic') {
+      this.kineticAmmoText.style.fontSize = '22px';
+      this.fluxAmmoText.style.fontSize = '18px';
+    }
+
+    // Flux line
+    const fluxActive = this.currentAmmoType === 'flux' ? ' [ACTIVE]' : '';
+    this.fluxAmmoText.textContent = `FLUX: ${this.ammoAmounts.flux}${fluxActive}`;
+
+    // Scale up active ammo type for visibility
+    if (this.currentAmmoType === 'flux') {
+      this.fluxAmmoText.style.fontSize = '22px';
+      this.kineticAmmoText.style.fontSize = '18px';
+    }
   }
 
-  flashAmmoCounter() {
+  flashAmmoDisplay() {
     // Flash red when out of ammo
-    const originalColor = this.ammoCounter.style.color;
-    this.ammoCounter.style.color = '#ff0000';
+    const originalDisplay = this.ammoDisplay.style.borderColor;
+    this.ammoDisplay.style.borderColor = '#ff0000';
+    this.ammoDisplay.style.boxShadow = '0 0 15px rgba(255, 0, 0, 0.6)';
     
     setTimeout(() => {
-      this.ammoCounter.style.color = originalColor;
+      this.ammoDisplay.style.borderColor = originalDisplay;
+      this.ammoDisplay.style.boxShadow = 'none';
     }, 200);
   }
 

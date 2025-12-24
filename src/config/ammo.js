@@ -6,34 +6,34 @@ export const AMMO_CONFIGS = {
   kinetic: {
     name: 'Kinetic Rounds',
     type: 'kinetic',
-    color: 0xff6600,
-    trailColor: 0xffaa00,
+    color: 0xff6600,          // Orange/amber
+    trailColor: 0xff6600,     // Solid orange line
     glowColor: 0xff9944,
-    damage: 25,
-    speed: 100, // Units per second
+    damage: 20,               // Phase 6 balance
+    speed: 100,
     maxAmmo: 100,
-    startingAmmo: 50,
-    dropType: 'metal', // What resource it drops from enemies
+    startingAmmo: 50,         // Starting with 50
+    dropType: 'metal',        // Dropped by standard robots
     flashIntensity: 3,
-    flashDuration: 120, // milliseconds
-    description: 'Standard ballistic ammunition. Effective against most targets.'
+    flashDuration: 120,
+    description: 'Standard kinetic ammunition. 100% damage to unshielded, 25% to shielded.'
   },
 
   flux: {
     name: 'Flux Energy',
     type: 'flux',
-    color: 0x00aaff,
-    trailColor: 0x66ccff,
+    color: 0x00aaff,          // Electric blue
+    trailColor: 0x00aaff,     // Blue line
     glowColor: 0x44bbff,
-    damage: 30,
+    damage: 20,               // Same base damage, but bonus multiplier vs shielded
     speed: 120,
     maxAmmo: 50,
-    startingAmmo: 0, // Must be collected
-    dropType: 'energy',
+    startingAmmo: 20,         // Start with enough to kill 1 shielded robot
+    dropType: 'energy',       // Dropped by shielded robots
     flashIntensity: 4,
     flashDuration: 100,
-    specialEffect: 'piercing', // Penetrates shields better
-    description: 'Experimental energy weapon. Bypasses most shielding.'
+    specialEffect: 'shield_piercing',
+    description: 'Flux energy ammunition. 100% damage to shielded, 50% to standard.'
   },
 
   caustic: {
@@ -55,15 +55,15 @@ export const AMMO_CONFIGS = {
 };
 
 /**
- * Resource drop configurations
+ * Resource drop configurations - Match ammo types with colors
  */
 export const RESOURCE_CONFIGS = {
   metal: {
     type: 'metal',
     name: 'Metal Scrap',
-    color: 0x00ffff,
-    emissiveColor: 0x00ccff,
-    lightColor: 0x00ffff,
+    color: 0xff6600,          // Orange/amber glow (matches Kinetic)
+    emissiveColor: 0xff9944,
+    lightColor: 0xff6600,
     ammoType: 'kinetic',
     ammoAmount: 10
   },
@@ -71,7 +71,7 @@ export const RESOURCE_CONFIGS = {
   energy: {
     type: 'energy',
     name: 'Energy Cell',
-    color: 0x00aaff,
+    color: 0x00aaff,          // Electric blue glow (matches Flux)
     emissiveColor: 0x0088ff,
     lightColor: 0x00aaff,
     ammoType: 'flux',
