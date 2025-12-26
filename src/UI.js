@@ -96,7 +96,7 @@ export class UI {
       border-top: 1px solid #444;
       padding-top: 8px;
     `;
-    helpText.textContent = 'Press 1/2 to switch ammo';
+    helpText.textContent = 'Press 1/2 to switch ammo    [TAB] Factory Status';
     this.ammoDisplay.appendChild(helpText);
 
     document.body.appendChild(this.ammoDisplay);

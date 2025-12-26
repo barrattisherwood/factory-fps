@@ -131,6 +131,11 @@ export class Player {
   }
 
   shoot() {
+    // Prevent shooting while factory overlay is open
+    if (this.game.factoryUI && this.game.factoryUI.isOpen) {
+      return;
+    }
+
     // Check ammo via AmmoManager
     if (!this.game.ammoManager.hasAmmo()) {
       console.log('No ammo!');
@@ -218,7 +223,7 @@ export class Player {
     }, 100);
   }
 
-  update() {
+  update(timeScale = 1.0) {
     if (!this.isLocked) return;
 
     // Gun is parented to camera, no manual update needed!
@@ -236,10 +241,12 @@ export class Player {
     this.velocity.x = 0;
     this.velocity.z = 0;
 
-    if (this.keys['w']) this.velocity.add(forward.multiplyScalar(this.moveSpeed));
-    if (this.keys['s']) this.velocity.sub(forward.multiplyScalar(this.moveSpeed));
-    if (this.keys['a']) this.velocity.sub(right.multiplyScalar(this.moveSpeed));
-    if (this.keys['d']) this.velocity.add(right.multiplyScalar(this.moveSpeed));
+    // Scale movement by timeScale so opening factory slows player
+    const scaledMove = this.moveSpeed * timeScale;
+    if (this.keys['w']) this.velocity.add(forward.multiplyScalar(scaledMove));
+    if (this.keys['s']) this.velocity.sub(forward.multiplyScalar(scaledMove));
+    if (this.keys['a']) this.velocity.sub(right.multiplyScalar(scaledMove));
+    if (this.keys['d']) this.velocity.add(right.multiplyScalar(scaledMove));
 
     // Check if on ground
     if (this.camera.position.y <= this.eyeHeight) {
@@ -262,11 +269,12 @@ export class Player {
     }
     this.spacePressed = spaceDown;
 
-    // Apply gravity
+    // Apply gravity (scaled)
     if (!this.isGrounded) {
-      this.velocity.y -= this.gravity;
+      this.velocity.y -= this.gravity * timeScale;
     }
 
+    // Apply velocity scaled to frame (timeScale affects per-frame movement)
     this.camera.position.add(this.velocity);
   }
 

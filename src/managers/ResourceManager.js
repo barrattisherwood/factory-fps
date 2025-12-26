@@ -10,6 +10,36 @@ export class ResourceManager {
       energy: 0,
       exotic: 0
     };
+    this.ammoManager = null;
+  }
+
+  /**
+   * Optional: set AmmoManager instance so resources auto-produce ammo
+   */
+  setAmmoManager(ammoManager) {
+    this.ammoManager = ammoManager;
+  }
+
+  /**
+   * Collect resource (used by orbs). Emits collected event and auto-produces ammo.
+   */
+  collectResource(type, amount) {
+    this.add(type, amount);
+    this.eventBus.emit('resource:collected', { type, amount });
+
+    // Auto-produce ammo mapping
+    if (this.ammoManager) {
+      if (type === 'metal') {
+        this.ammoManager.add('kinetic', amount);
+        this.eventBus.emit('production:produced', { resource: 'metal', ammo: 'kinetic', amount });
+      } else if (type === 'energy') {
+        this.ammoManager.add('flux', amount);
+        this.eventBus.emit('production:produced', { resource: 'energy', ammo: 'flux', amount });
+      }
+    } else {
+      // Still emit production event so UI can react even if no ammo manager is set
+      this.eventBus.emit('production:produced', { resource: type, ammo: null, amount });
+    }
   }
 
   /**

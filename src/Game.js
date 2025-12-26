@@ -5,6 +5,7 @@ import { UI } from './UI.js';
 import { EventBus } from './core/EventBus.js';
 import { ResourceManager } from './managers/ResourceManager.js';
 import { AmmoManager } from './managers/AmmoManager.js';
+import { FactoryUI } from './FactoryUI.js';
 import { DebugRenderer } from './utils/DebugRenderer.js';
 
 export class Game {
@@ -15,11 +16,14 @@ export class Game {
     this.enemies = [];
     this.orbs = [];
     this.gameState = 'playing'; // 'playing' or 'victory'
+    this.timeScale = 1.0; // Global time scale (1.0 = normal)
 
     // Initialize core systems
     this.events = new EventBus();
     this.resourceManager = new ResourceManager(this.events);
     this.ammoManager = new AmmoManager(this.events);
+    // Link resource manager to ammo manager for auto-production
+    this.resourceManager.setAmmoManager(this.ammoManager);
     this.debug = new DebugRenderer(this.scene);
 
     this.setup();
@@ -64,8 +68,15 @@ export class Game {
     // Create UI (pass eventBus for listening to events)
     this.ui = new UI(this.events);
 
+    // Create factory UI overlay
+    this.factoryUI = new FactoryUI(this.events, this);
+
     // Spawn enemies
     this.spawnEnemies();
+  }
+
+  setTimeScale(value) {
+    this.timeScale = value;
   }
 
   spawnEnemies() {
@@ -140,17 +151,17 @@ export class Game {
 
   update() {
     if (this.player) {
-      this.player.update();
+      this.player.update(this.timeScale);
     }
 
     // Update enemies
     this.enemies.forEach(enemy => {
-      enemy.update();
+      if (enemy.update) enemy.update(this.timeScale);
     });
 
     // Update orbs
     this.orbs.forEach(orb => {
-      orb.update(this.player.camera.getWorldPosition(new THREE.Vector3()));
+      orb.update(this.player.camera.getWorldPosition(new THREE.Vector3()), this.timeScale);
     });
 
     // Check for orb collection
@@ -171,8 +182,9 @@ export class Game {
           const ammoAmount = orb.ammoAmount || 10;
           
           console.log(`Collecting orb: ${orb.resourceType} → ${ammoType} (+${ammoAmount})`);
-          this.ammoManager.add(ammoType, ammoAmount);
-          
+          // Route collection through ResourceManager so factory receives it
+          this.resourceManager.collectResource(orb.resourceType, ammoAmount);
+
           orb.collect();
           this.removeOrb(orb);
         }

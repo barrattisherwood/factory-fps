@@ -52,11 +52,11 @@ export class ResourceOrb {
     return this.mesh;
   }
 
-  update(playerPosition) {
+  update(playerPosition, timeScale = 1.0) {
     if (this.collected) return;
 
     // Apply gravity
-    this.velocity.y -= 0.01;
+    this.velocity.y -= 0.01 * timeScale;
 
     // Check if within attraction distance
     const distance = this.mesh.position.distanceTo(playerPosition);
@@ -65,9 +65,9 @@ export class ResourceOrb {
     }
 
     if (this.isFlyingToPlayer) {
-      // Attract to player
+      // Attract to player (scaled)
       const direction = playerPosition.clone().sub(this.mesh.position).normalize();
-      this.velocity.add(direction.multiplyScalar(this.attractionForce));
+      this.velocity.add(direction.multiplyScalar(this.attractionForce * timeScale));
     }
 
     // Apply velocity
@@ -79,10 +79,10 @@ export class ResourceOrb {
       if (this.velocity.y < 0) this.velocity.y = 0;
     }
 
-    // Hover/bob animation
-    this.bobAmount += this.bobSpeed;
+    // Hover/bob animation (scaled)
+    this.bobAmount += this.bobSpeed * timeScale;
     if (!this.isFlyingToPlayer) {
-      this.mesh.position.y += Math.sin(this.bobAmount) * 0.01;
+      this.mesh.position.y += Math.sin(this.bobAmount) * 0.01 * timeScale;
     }
 
     // Update light position

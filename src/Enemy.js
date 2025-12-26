@@ -316,7 +316,7 @@ export class Enemy {
     return this.mesh;
   }
 
-  update() {
+  update(timeScale = 1.0) {
     // Handle damage flash
     if (this.flashTimer < this.flashDuration) {
       const progress = this.flashTimer / this.flashDuration;
@@ -328,16 +328,16 @@ export class Enemy {
           progress
         );
       }
-      this.flashTimer += 16;
+      this.flashTimer += 16 * timeScale;
     } else if (this.flashDuration > 0) {
       this.mesh.material.color.copy(this.originalColor);
       this.flashDuration = 0;
     }
 
-    // Animate shield if present
+    // Animate shield if present (scaled)
     if (this.shield) {
-      this.shield.rotation.y += 0.01;
-      this.shield.rotation.x = Math.sin(Date.now() * 0.001) * 0.1;
+      this.shield.rotation.y += 0.01 * timeScale;
+      this.shield.rotation.x = Math.sin(Date.now() * 0.001 * timeScale) * 0.1;
     }
   }
 }

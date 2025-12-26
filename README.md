@@ -2,23 +2,40 @@
 
 ## 🎯 Start Here
 
-**New to the project?** Start with [STATUS.md](STATUS.md) for a quick overview.
+**New to the project?** Start with [STATUS.md](STATUS.md) for current status.
 
 **Want to understand the architecture?** Read [ARCHITECTURE.md](ARCHITECTURE.md).
 
-**Ready to implement Phase 6?** Follow [PHASE_6_GUIDE.md](PHASE_6_GUIDE.md).
+**Ready to test Phase 7?** Follow [PHASE_7_TESTING.md](PHASE_7_TESTING.md).
+
+---
+
+## 🏭 Phase 7: Factory UI - NOW LIVE! ✅
+
+The factory management UI is complete and ready to use!
+
+- **Press TAB** to open the factory overlay
+- See your **Metal** and **Energy** resources
+- Watch **auto-production** of Kinetic and Flux ammo
+- Check production status mid-combat (time slows to 30%)
+
+**Documentation**:
+- [PHASE_7_COMPLETE.md](PHASE_7_COMPLETE.md) - Full implementation
+- [PHASE_7_QUICK_REF.md](PHASE_7_QUICK_REF.md) - Quick reference
+- [PHASE_7_TESTING.md](PHASE_7_TESTING.md) - Testing guide
+- [PHASE_7_VISUAL_GUIDE.md](PHASE_7_VISUAL_GUIDE.md) - Visual design
 
 ---
 
 ## 📖 Documentation Files
 
 ### 1. [STATUS.md](STATUS.md) - Project Status ⭐ START HERE
-**What:** Current implementation status and quick wins  
+**What:** Current implementation status (Phase 7 Complete!)  
 **When:** First time reading documentation  
 **Time:** 5 minutes  
 **Contains:**
-- What was implemented
-- Phase 6 readiness (90%)
+- Phase 7 features (Factory UI)
+- Phase 6 features (Dual Ammo)
 - Quick testing commands
 - Success metrics
 
