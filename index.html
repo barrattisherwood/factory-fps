@@ -13,6 +13,199 @@
     </style>
   </head>
   <body>
+    <!-- Damage Flash Overlay -->
+    <div id="damage-flash" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: red;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 100;
+    "></div>
+
+    <!-- Health Display (In-Game HUD) -->
+    <div id="health-display" style="display:none; position:fixed; top:20px; left:20px; z-index:200;">
+      <div class="hud-label">HEALTH</div>
+      <div class="health-bar-container">
+        <div id="health-bar" class="health-bar"></div>
+      </div>
+      <div id="health-text" class="hud-value">100/100</div>
+    </div>
+
+    <!-- Wave Display (In-Game HUD) -->
+    <div id="wave-display" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:200;">
+      <div class="wave-info">
+        <span id="wave-number">WAVE 1/5</span>
+        <span id="enemies-remaining">5 ENEMIES</span>
+      </div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="menu-screen">
+      <div class="menu-container">
+        <h1 class="game-title">FPS FACTORY</h1>
+        <p class="game-subtitle">Prototype v0.1</p>
+        
+        <div class="menu-buttons">
+          <button id="btn-start" class="menu-btn primary">START MISSION</button>
+          <button id="btn-howto" class="menu-btn">HOW TO PLAY</button>
+          <button id="btn-credits" class="menu-btn">CREDITS</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- How to Play Screen -->
+    <div id="howto-screen" class="menu-screen" style="display:none;">
+      <div class="menu-container">
+        <h2>HOW TO PLAY</h2>
+        
+        <div class="controls-grid">
+          <div class="control-item">
+            <span class="control-key">WASD</span>
+            <span class="control-desc">Move</span>
+          </div>
+          <div class="control-item">
+            <span class="control-key">MOUSE</span>
+            <span class="control-desc">Look Around</span>
+          </div>
+          <div class="control-item">
+            <span class="control-key">LEFT CLICK</span>
+            <span class="control-desc">Shoot</span>
+          </div>
+          <div class="control-item">
+            <span class="control-key">1 / 2</span>
+            <span class="control-desc">Switch Ammo</span>
+          </div>
+          <div class="control-item">
+            <span class="control-key">TAB</span>
+            <span class="control-desc">Factory Status</span>
+          </div>
+          <div class="control-item">
+            <span class="control-key">ESC</span>
+            <span class="control-desc">Pause</span>
+          </div>
+        </div>
+        
+        <p class="objective">OBJECTIVE: Survive 5 waves of robot attacks</p>
+        <p class="tip">TIP: Match ammo type to enemy weakness for maximum damage</p>
+        
+        <button id="btn-back-from-howto" class="menu-btn">BACK</button>
+      </div>
+    </div>
+
+    <!-- Credits Screen -->
+    <div id="credits-screen" class="menu-screen" style="display:none;">
+      <div class="menu-container">
+        <h2>CREDITS</h2>
+        
+        <div class="credits-content">
+          <p><strong>FPS Factory</strong></p>
+          <p>A factory management FPS prototype</p>
+          <br>
+          <p>Created with Three.js</p>
+          <p>Phase 8: Wave Survival Mode</p>
+          <br>
+          <p>© 2025</p>
+        </div>
+        
+        <button id="btn-back-from-credits" class="menu-btn">BACK</button>
+      </div>
+    </div>
+
+    <!-- Wave Transition Screen -->
+    <div id="wave-transition" class="overlay-screen" style="display:none;">
+      <div class="transition-container">
+        <h2 id="wave-title">WAVE 2 INCOMING</h2>
+        <p id="wave-enemies">8 Hostiles Detected</p>
+        <div class="countdown-bar">
+          <div id="countdown-fill" class="countdown-fill"></div>
+        </div>
+        <p id="countdown-text">Ready in: 5s</p>
+      </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="overlay-screen" style="display:none;">
+      <div class="menu-container">
+        <h2>PAUSED</h2>
+        <div class="menu-buttons">
+          <button id="btn-resume" class="menu-btn primary">RESUME</button>
+          <button id="btn-restart" class="menu-btn">RESTART</button>
+          <button id="btn-quit" class="menu-btn">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victory-screen" class="menu-screen" style="display:none;">
+      <div class="menu-container">
+        <h1 class="result-title victory">MISSION COMPLETE</h1>
+        
+        <div class="stats-grid">
+          <div class="stat-row">
+            <span class="stat-label">Waves Survived:</span>
+            <span id="victory-waves" class="stat-value">5/5</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Enemies Eliminated:</span>
+            <span id="victory-kills" class="stat-value">60</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Accuracy:</span>
+            <span id="victory-accuracy" class="stat-value">67%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Resources Collected:</span>
+            <span id="victory-resources" class="stat-value">Metal: 245, Energy: 180</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Favorite Ammo:</span>
+            <span id="victory-ammo" class="stat-value">Flux (58%)</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Time:</span>
+            <span id="victory-time" class="stat-value">12m 34s</span>
+          </div>
+        </div>
+        
+        <div class="menu-buttons">
+          <button id="btn-play-again" class="menu-btn primary">PLAY AGAIN</button>
+          <button id="btn-victory-menu" class="menu-btn">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Defeat Screen -->
+    <div id="defeat-screen" class="menu-screen" style="display:none;">
+      <div class="menu-container">
+        <h1 class="result-title defeat">MISSION FAILED</h1>
+        
+        <div class="stats-grid">
+          <div class="stat-row">
+            <span class="stat-label">Survived:</span>
+            <span id="defeat-waves" class="stat-value">Wave 3/5</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Enemies Eliminated:</span>
+            <span id="defeat-kills" class="stat-value">25</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Accuracy:</span>
+            <span id="defeat-accuracy" class="stat-value">54%</span>
+          </div>
+        </div>
+        
+        <div class="menu-buttons">
+          <button id="btn-try-again" class="menu-btn primary">TRY AGAIN</button>
+          <button id="btn-defeat-menu" class="menu-btn">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

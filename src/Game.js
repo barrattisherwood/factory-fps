@@ -7,6 +7,11 @@ import { ResourceManager } from './managers/ResourceManager.js';
 import { AmmoManager } from './managers/AmmoManager.js';
 import { FactoryUI } from './FactoryUI.js';
 import { DebugRenderer } from './utils/DebugRenderer.js';
+import { GameStateManager } from './managers/GameStateManager.js';
+import { WaveManager } from './managers/WaveManager.js';
+import { StatsManager } from './managers/StatsManager.js';
+import { SoundManager } from './managers/SoundManager.js';
+import { MenuManager } from './managers/MenuManager.js';
 
 export class Game {
   constructor(scene, camera) {
@@ -15,7 +20,6 @@ export class Game {
     this.player = null;
     this.enemies = [];
     this.orbs = [];
-    this.gameState = 'playing'; // 'playing' or 'victory'
     this.timeScale = 1.0; // Global time scale (1.0 = normal)
 
     // Initialize core systems
@@ -25,8 +29,19 @@ export class Game {
     // Link resource manager to ammo manager for auto-production
     this.resourceManager.setAmmoManager(this.ammoManager);
     this.debug = new DebugRenderer(this.scene);
+    
+    // Phase 8: New manager systems
+    this.stateManager = new GameStateManager(this);
+    this.waveManager = new WaveManager(this);
+    this.statsManager = new StatsManager();
+    this.soundManager = new SoundManager();
+    this.menuManager = new MenuManager(this);
 
     this.setup();
+    this.setupEventListeners();
+    
+    // Start in main menu
+    this.stateManager.changeState('MAIN_MENU');
   }
 
   setup() {
@@ -70,46 +85,167 @@ export class Game {
 
     // Create factory UI overlay
     this.factoryUI = new FactoryUI(this.events, this);
-
-    // Spawn enemies
-    this.spawnEnemies();
+    
+    // Setup HUD event listeners
+    this.menuManager.setupHUDEventListeners();
+  }
+  
+  setupEventListeners() {
+    // Enemy killed tracking
+    this.events.on('enemy:killed', (data) => {
+      this.statsManager.onEnemyKilled(data.type);
+      this.waveManager.onEnemyKilled();
+      this.soundManager.playHit();
+    });
+    
+    // Player death
+    this.events.on('player:died', () => {
+      this.statsManager.finalize();
+      this.stateManager.changeState('DEFEAT');
+    });
+    
+    // Resource collection tracking
+    this.events.on('resource:changed', (data) => {
+      if (data.amount > 0) {
+        this.statsManager.onResourceCollected(data.type, data.amount);
+        this.soundManager.playCollect();
+      }
+    });
+    
+    // Weapon fired tracking
+    this.events.on('weapon:fired', (data) => {
+      this.statsManager.onShotFired(data.type);
+      this.soundManager.playShoot(data.type);
+    });
+    
+    // Shot hit tracking
+    this.events.on('enemy:hit', () => {
+      this.statsManager.onShotHit();
+    });
+    
+    // Wave events
+    this.events.on('wave:started', (data) => {
+      this.soundManager.playWaveStart();
+      console.log(`Wave ${data.wave} started: ${data.label}`);
+    });
+    
+    this.events.on('wave:completed', (data) => {
+      this.statsManager.onWaveCompleted(data.wave);
+      console.log(`Wave ${data.wave} completed!`);
+    });
   }
 
   setTimeScale(value) {
     this.timeScale = value;
   }
+  
+  // Game state transition methods
+  startGame() {
+    console.log('Starting new game...');
+    
+    // Reset all systems
+    this.statsManager.reset();
+    this.waveManager.reset();
+    this.player.resetHealth();
+    this.clearEnemies();
+    this.clearOrbs();
+    
+    // Reset resources and ammo
+    this.resourceManager.reset();
+    this.ammoManager.reset();
+    
+    // Show HUD
+    this.menuManager.showHUD();
+    
+    // Start first wave
+    this.stateManager.changeState('PLAYING');
+    this.waveManager.startNextWave();
+  }
+  
+  pauseGame() {
+    if (this.stateManager.currentState === 'PLAYING') {
+      this.stateManager.changeState('PAUSED');
+    }
+  }
+  
+  resumeGame() {
+    if (this.stateManager.currentState === 'PAUSED') {
+      this.stateManager.changeState('PLAYING');
+    }
+  }
+  
+  restartGame() {
+    this.startGame();
+  }
+  
+  quitToMainMenu() {
+    this.clearEnemies();
+    this.clearOrbs();
+    this.stateManager.changeState('MAIN_MENU');
+  }
 
-  spawnEnemies() {
-    // Phase 6: 3 standard + 2 shielded robots
-    const enemySpawns = [
-      // Standard robots (orange orb drops)
-      { type: 'standard', angle: 0 },
-      { type: 'standard', angle: Math.PI * 0.67 },
-      { type: 'standard', angle: Math.PI * 1.33 },
-      // Shielded robots (blue orb drops)
-      { type: 'shielded', angle: Math.PI * 1.67 },
-      { type: 'shielded', angle: Math.PI * 2.33 }
-    ];
-
-    const spawnRadius = 30;
-
-    enemySpawns.forEach((spawn, index) => {
-      const x = Math.cos(spawn.angle) * spawnRadius;
-      const z = Math.sin(spawn.angle) * spawnRadius;
-
-      const enemy = new Enemy(x, 1.5, z, spawn.type);
-      
-      // Set death callback
-      enemy.onDeath = (orb) => {
-        this.addOrb(orb);
-        this.removeEnemy(enemy);
-      };
-
-      this.enemies.push(enemy);
-      this.scene.add(enemy.getMesh());
+  // State manager callback methods
+  showMainMenu() {
+    this.menuManager.showMainMenu();
+  }
+  
+  hideAllMenus() {
+    this.menuManager.hideAll();
+    this.menuManager.showHUD();
+  }
+  
+  showWaveTransition() {
+    this.menuManager.showWaveTransition({
+      wave: this.waveManager.currentWave
     });
+  }
+  
+  showPauseMenu() {
+    this.menuManager.showPauseMenu();
+  }
+  
+  showVictoryScreen() {
+    this.menuManager.showVictoryScreen();
+  }
+  
+  showDefeatScreen() {
+    this.menuManager.showDefeatScreen();
+  }
+  
+  pauseTime() {
+    this.setTimeScale(0);
+  }
+  
+  resumeTime() {
+    this.setTimeScale(1.0);
+  }
 
-    console.log(`Spawned 3 standard robots + 2 shielded robots`);
+  // Enemy spawning and management
+  spawnEnemy(type, position) {
+    const enemy = new Enemy(position.x, position.y, position.z, type);
+    
+    // Set death callback
+    enemy.onDeath = (orbs) => {
+      orbs.forEach(orb => this.addOrb(orb));
+      this.removeEnemy(enemy);
+    };
+
+    this.enemies.push(enemy);
+    this.scene.add(enemy.getMesh());
+  }
+  
+  clearEnemies() {
+    this.enemies.forEach(enemy => {
+      this.scene.remove(enemy.getMesh());
+    });
+    this.enemies = [];
+  }
+  
+  clearOrbs() {
+    this.orbs.forEach(orb => {
+      this.scene.remove(orb.getMesh());
+    });
+    this.orbs = [];
   }
 
   addOrb(orb) {
@@ -132,31 +268,32 @@ export class Game {
       this.scene.remove(enemy.getMesh());
     }
     
-    // Emit event for quest system, achievements, etc.
+    // Emit event for tracking
     this.events.emit('enemy:killed', {
       type: enemy.type || 'standard',
       position: enemy.position
     });
-    
-    this.checkVictoryCondition();
-  }
-
-  checkVictoryCondition() {
-    if (this.enemies.length === 0 && this.gameState === 'playing') {
-      this.gameState = 'victory';
-      this.ui.showVictory();
-      console.log('SECTOR CLEARED!');
-    }
   }
 
   update() {
+    // Only update gameplay when playing
+    if (this.stateManager && !this.stateManager.isPlaying()) {
+      return;
+    }
+    
     if (this.player) {
       this.player.update(this.timeScale);
     }
 
     // Update enemies
     this.enemies.forEach(enemy => {
-      if (enemy.update) enemy.update(this.timeScale);
+      if (enemy.update) {
+        enemy.update(this.timeScale);
+      }
+      // Check player collision
+      if (enemy.checkPlayerCollision) {
+        enemy.checkPlayerCollision(this.player);
+      }
     });
 
     // Update orbs

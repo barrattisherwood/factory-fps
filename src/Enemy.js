@@ -340,4 +340,22 @@ export class Enemy {
       this.shield.rotation.x = Math.sin(Date.now() * 0.001 * timeScale) * 0.1;
     }
   }
+  
+  checkPlayerCollision(player) {
+    if (!player || this.isDead) return;
+    
+    // Get player position from camera
+    const playerPos = player.camera.getWorldPosition(new THREE.Vector3());
+    const distanceToPlayer = this.position.distanceTo(playerPos);
+    
+    // Check collision (2 unit radius)
+    if (distanceToPlayer < 2.0) {
+      player.takeDamage(10);
+      
+      // Push enemy back to prevent rapid damage
+      const pushDir = this.position.clone().sub(playerPos).normalize();
+      this.position.add(pushDir.multiplyScalar(0.5));
+      this.mesh.position.copy(this.position);
+    }
+  }
 }

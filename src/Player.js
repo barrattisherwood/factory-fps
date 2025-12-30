@@ -15,6 +15,12 @@ export class Player {
     this.eyeHeight = 1.7; // Player eye height above ground
     this.canJump = true; // Can only jump once per ground contact
     this.spacePressed = false; // Track if space was pressed last frame
+    
+    // Health system
+    this.maxHealth = 100;
+    this.currentHealth = 100;
+    this.isInvulnerable = false;
+    this.invulnerabilityTime = 1.0; // 1 second
 
     // Setup bullet tracer pool (performance optimization)
     this.bulletPool = new ObjectPool(
@@ -170,6 +176,12 @@ export class Player {
       if (hitEnemy) {
         console.log('Hit enemy!');
         
+        // Emit hit event for stats tracking
+        this.game.events.emit('enemy:hit', {
+          enemy: hitEnemy,
+          position: hits[0].point
+        });
+        
         // Debug hit point
         if (this.game.debug.enabled) {
           this.game.debug.drawPoint(hits[0].point, 0x00ff00, 0.3);
@@ -276,6 +288,80 @@ export class Player {
 
     // Apply velocity scaled to frame (timeScale affects per-frame movement)
     this.camera.position.add(this.velocity);
+  }
+  
+  takeDamage(amount) {
+    if (this.isInvulnerable || this.currentHealth <= 0) return;
+    
+    this.currentHealth -= amount;
+    this.currentHealth = Math.max(0, this.currentHealth);
+    
+    this.game.events.emit('player:damaged', { 
+      health: this.currentHealth,
+      maxHealth: this.maxHealth,
+      amount: amount
+    });
+    
+    // Track stats
+    if (this.game.statsManager) {
+      this.game.statsManager.onDamageTaken(amount);
+    }
+    
+    // Visual feedback
+    this.flashDamage();
+    
+    // Play damage sound
+    if (this.game.soundManager) {
+      this.game.soundManager.playDamage();
+    }
+    
+    // Brief invulnerability
+    this.makeInvulnerable();
+    
+    if (this.currentHealth <= 0) {
+      this.die();
+    }
+  }
+  
+  makeInvulnerable() {
+    this.isInvulnerable = true;
+    setTimeout(() => {
+      this.isInvulnerable = false;
+    }, this.invulnerabilityTime * 1000);
+  }
+  
+  flashDamage() {
+    // Screen flash red
+    const damageFlash = document.getElementById('damage-flash');
+    if (damageFlash) {
+      damageFlash.style.opacity = '0.3';
+      setTimeout(() => {
+        damageFlash.style.opacity = '0';
+      }, 200);
+    }
+  }
+  
+  die() {
+    console.log('Player died!');
+    this.game.events.emit('player:died');
+  }
+  
+  heal(amount) {
+    this.currentHealth = Math.min(this.maxHealth, this.currentHealth + amount);
+    this.game.events.emit('player:damaged', { 
+      health: this.currentHealth,
+      maxHealth: this.maxHealth,
+      amount: -amount
+    });
+  }
+  
+  resetHealth() {
+    this.currentHealth = this.maxHealth;
+    this.isInvulnerable = false;
+  }
+  
+  getHealthPercent() {
+    return (this.currentHealth / this.maxHealth) * 100;
   }
 
   getGroup() {
