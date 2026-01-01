@@ -28,6 +28,14 @@ const LEVEL_CONFIG = {
     enemies: { standard: 4, shielded: 6, heavy: 4 },
     arena: 'industrial',
     completionReward: { metal: 100, energy: 75 }
+  },
+  4: {
+    title: 'BOSS',
+    description: 'Boss Encounter - Flux Warden',
+    enemyCount: 1,
+    enemies: { boss: 1 },
+    arena: 'boss',
+    completionReward: { metal: 0, energy: 0 }  // Boss has special drops
   }
 };
 

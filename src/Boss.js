@@ -136,7 +136,7 @@ export class Boss extends Enemy {
     // Call parent onDeath callback to spawn orbs
     if (this.onDeath) {
       const orbs = this.createDeathOrbs();
-      orbs.forEach(orb => this.onDeath(orb));
+      this.onDeath(orbs);  // Pass array of orbs, not individual orbs
     }
     
     // Remove mesh after brief delay

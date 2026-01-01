@@ -473,22 +473,19 @@ export class Game {
     
     // Wait for transition, then spawn boss
     setTimeout(() => {
+      this.boss = new Boss('fluxWarden');
+      
+      // Position the boss
       const bossSpawnPos = { x: 0, y: 1, z: -50 };
-      this.boss = new Boss(bossSpawnPos.x, bossSpawnPos.y, bossSpawnPos.z, 'flux_warden');
+      this.boss.position.set(bossSpawnPos.x, bossSpawnPos.y, bossSpawnPos.z);
       
       // Set death callback
       this.boss.onDeath = (orbs) => {
         orbs.forEach(orb => this.addOrb(orb));
         
-        // Drop unlock
-        this.boss.dropUnlock();
-        
-        // Remove boss
+        // Remove boss (unlock is handled in Boss.die())
         this.scene.remove(this.boss.getMesh());
         this.boss = null;
-        
-        // Emit boss defeated
-        this.events.emit('boss:defeated', { name: 'Flux Warden' });
       };
       
       this.enemies.push(this.boss);
