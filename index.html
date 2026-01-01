@@ -206,6 +206,125 @@
       </div>
     </div>
 
+    <!-- Hub Screen (Phase 9) -->
+    <div id="hub-screen" class="menu-screen" style="display:none;">
+      <div class="hub-container">
+        <h1 class="hub-title">RECLAMATION HUB</h1>
+        
+        <div class="hub-sections">
+          <!-- Start Run -->
+          <div class="hub-section">
+            <h2>MISSION CONTROL</h2>
+            <button id="btn-start-run" class="menu-btn primary">START RUN</button>
+            <p class="run-info">3 Levels + Boss Fight</p>
+          </div>
+          
+          <!-- Unlocks Display -->
+          <div class="hub-section">
+            <h2>BLUEPRINTS</h2>
+            <div id="unlocks-list" class="unlocks-list">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+          
+          <!-- Stats -->
+          <div class="hub-section">
+            <h2>STATISTICS</h2>
+            <div class="hub-stats">
+              <p>Runs Attempted: <span id="stat-runs">0</span></p>
+              <p>Runs Completed: <span id="stat-wins">0</span></p>
+              <p>Bosses Defeated: <span id="stat-bosses">0</span></p>
+              <p>Total Kills: <span id="stat-kills">0</span></p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="hub-bottom">
+          <button id="btn-reset-progress" class="menu-btn small">Reset All Progress</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level Transition (Phase 9) -->
+    <div id="level-transition" class="overlay-screen" style="display:none;">
+      <div class="transition-container">
+        <h2>LEVEL COMPLETE</h2>
+        <div class="rewards">
+          <p style="color: #00ffcc; margin-bottom: 10px;">Rewards:</p>
+          <p id="reward-metal" style="color: #ff6600;">+ 50 Metal</p>
+          <p id="reward-energy" style="color: #00aaff;">+ 30 Energy</p>
+        </div>
+        <p id="next-level-text" style="margin-top: 20px; font-size: 18px;">Proceeding to Level 2...</p>
+        <div class="countdown-bar">
+          <div id="level-countdown-fill" class="countdown-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Run Failed Screen (Phase 9) -->
+    <div id="run-failed-screen" class="menu-screen" style="display:none;">
+      <div class="menu-container">
+        <h1 class="result-title defeat">RUN FAILED</h1>
+        
+        <div class="stats-grid">
+          <div class="stat-row">
+            <span class="stat-label">Reached:</span>
+            <span id="failed-level" class="stat-value">Level 2/3</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Enemies Eliminated:</span>
+            <span id="failed-kills" class="stat-value">28</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Time Survived:</span>
+            <span id="failed-time" class="stat-value">8m 32s</span>
+          </div>
+        </div>
+        
+        <p class="encouragement">Progress is saved. Try again!</p>
+        
+        <div class="menu-buttons">
+          <button id="btn-retry-run" class="menu-btn primary">TRY AGAIN</button>
+          <button id="btn-failed-hub" class="menu-btn">RETURN TO HUB</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Run Success Screen (Phase 9) -->
+    <div id="run-success-screen" class="menu-screen" style="display:none;">
+      <div class="menu-container">
+        <h1 class="result-title victory">RUN COMPLETE</h1>
+        
+        <div class="unlock-showcase" id="new-unlock">
+          <h2 style="color: #00ffcc;">BLUEPRINT ACQUIRED</h2>
+          <div class="blueprint-card">
+            <h3 id="unlock-name">Thermal Panel</h3>
+            <p id="unlock-description">Produce Thermal ammunition</p>
+          </div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-row">
+            <span class="stat-label">Total Kills:</span>
+            <span id="success-kills" class="stat-value">60</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Accuracy:</span>
+            <span id="success-accuracy" class="stat-value">72%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Time:</span>
+            <span id="success-time" class="stat-value">14m 23s</span>
+          </div>
+        </div>
+        
+        <div class="menu-buttons">
+          <button id="btn-next-run" class="menu-btn primary">NEXT RUN</button>
+          <button id="btn-success-hub" class="menu-btn">RETURN TO HUB</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

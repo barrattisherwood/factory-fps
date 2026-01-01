@@ -1,6 +1,6 @@
 /**
  * GameStateManager - Handles game state transitions
- * States: MAIN_MENU, PLAYING, WAVE_TRANSITION, PAUSED, VICTORY, DEFEAT
+ * Phase 9: Added HUB, LEVEL_TRANSITION, RUN_FAILED, RUN_SUCCESS, BOSS_FIGHT states
  */
 export class GameStateManager {
   constructor(game) {
@@ -21,15 +21,34 @@ export class GameStateManager {
       case 'MAIN_MENU':
         this.game.showMainMenu();
         break;
+      case 'HUB':
+        this.game.showHub();
+        break;
       case 'PLAYING':
         this.game.hideAllMenus();
         this.game.resumeTime();
+        break;
+      case 'LEVEL_TRANSITION':
+        this.game.showLevelTransition();
+        this.game.pauseTime();
         break;
       case 'WAVE_TRANSITION':
         this.game.showWaveTransition();
         break;
       case 'PAUSED':
         this.game.showPauseMenu();
+        this.game.pauseTime();
+        break;
+      case 'BOSS_FIGHT':
+        this.game.hideAllMenus();
+        this.game.resumeTime();
+        break;
+      case 'RUN_SUCCESS':
+        this.game.showRunSuccessScreen();
+        this.game.pauseTime();
+        break;
+      case 'RUN_FAILED':
+        this.game.showRunFailedScreen();
         this.game.pauseTime();
         break;
       case 'VICTORY':
@@ -44,7 +63,7 @@ export class GameStateManager {
   }
   
   isPlaying() {
-    return this.currentState === 'PLAYING';
+    return this.currentState === 'PLAYING' || this.currentState === 'BOSS_FIGHT';
   }
   
   isPaused() {
@@ -52,6 +71,6 @@ export class GameStateManager {
   }
   
   isInMenu() {
-    return ['MAIN_MENU', 'VICTORY', 'DEFEAT', 'PAUSED'].includes(this.currentState);
+    return ['MAIN_MENU', 'HUB', 'VICTORY', 'DEFEAT', 'PAUSED', 'RUN_SUCCESS', 'RUN_FAILED'].includes(this.currentState);
   }
 }

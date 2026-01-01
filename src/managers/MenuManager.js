@@ -1,5 +1,6 @@
 /**
  * MenuManager - Handles all menu screens and UI interactions
+ * Phase 9: Added Hub, Level Transition, Run Success/Failed screens
  */
 export class MenuManager {
   constructor(game) {
@@ -10,8 +11,8 @@ export class MenuManager {
   setupEventListeners() {
     // Main Menu
     document.getElementById('btn-start')?.addEventListener('click', () => {
-      this.game.soundManager.init(); // Initialize audio on user interaction
-      this.game.startGame();
+      this.game.soundManager.init();
+      this.game.stateManager.changeState('HUB');
     });
     
     document.getElementById('btn-howto')?.addEventListener('click', () => {
@@ -32,20 +33,49 @@ export class MenuManager {
       this.showMainMenu();
     });
     
+    // Hub
+    document.getElementById('btn-start-run')?.addEventListener('click', () => {
+      this.game.startRun();
+    });
+    
+    document.getElementById('btn-reset-progress')?.addEventListener('click', () => {
+      if (confirm('Reset ALL progress? This cannot be undone!')) {
+        this.game.resetProgress();
+      }
+    });
+    
     // Pause Menu
     document.getElementById('btn-resume')?.addEventListener('click', () => {
       this.game.resumeGame();
     });
     
     document.getElementById('btn-restart')?.addEventListener('click', () => {
-      this.game.restartGame();
+      this.game.restartRun();
     });
     
     document.getElementById('btn-quit')?.addEventListener('click', () => {
-      this.game.quitToMainMenu();
+      this.game.quitToHub();
     });
     
-    // Victory Screen
+    // Run Success
+    document.getElementById('btn-next-run')?.addEventListener('click', () => {
+      this.game.startRun();
+    });
+    
+    document.getElementById('btn-success-hub')?.addEventListener('click', () => {
+      this.game.stateManager.changeState('HUB');
+    });
+    
+    // Run Failed
+    document.getElementById('btn-retry-run')?.addEventListener('click', () => {
+      this.game.startRun();
+    });
+    
+    document.getElementById('btn-failed-hub')?.addEventListener('click', () => {
+      this.game.stateManager.changeState('HUB');
+    });
+    
+    // Victory Screen (Legacy Phase 8)
     document.getElementById('btn-play-again')?.addEventListener('click', () => {
       this.game.startGame();
     });
@@ -54,7 +84,7 @@ export class MenuManager {
       this.game.quitToMainMenu();
     });
     
-    // Defeat Screen
+    // Defeat Screen (Legacy Phase 8)
     document.getElementById('btn-try-again')?.addEventListener('click', () => {
       this.game.startGame();
     });
@@ -66,9 +96,10 @@ export class MenuManager {
     // ESC key for pause
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.game.stateManager) {
-        if (this.game.stateManager.currentState === 'PLAYING') {
+        const state = this.game.stateManager.currentState;
+        if (state === 'PLAYING' || state === 'BOSS_FIGHT') {
           this.game.pauseGame();
-        } else if (this.game.stateManager.currentState === 'PAUSED') {
+        } else if (state === 'PAUSED') {
           this.game.resumeGame();
         }
       }
@@ -79,15 +110,121 @@ export class MenuManager {
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('howto-screen').style.display = 'none';
     document.getElementById('credits-screen').style.display = 'none';
+    document.getElementById('hub-screen').style.display = 'none';
     document.getElementById('wave-transition').style.display = 'none';
+    document.getElementById('level-transition').style.display = 'none';
     document.getElementById('pause-menu').style.display = 'none';
     document.getElementById('victory-screen').style.display = 'none';
     document.getElementById('defeat-screen').style.display = 'none';
+    document.getElementById('run-success-screen').style.display = 'none';
+    document.getElementById('run-failed-screen').style.display = 'none';
   }
   
   showMainMenu() {
     this.hideAll();
     document.getElementById('main-menu').style.display = 'flex';
+    this.hideHUD();
+  }
+  
+  showHub() {
+    this.hideAll();
+    document.getElementById('hub-screen').style.display = 'flex';
+    this.hideHUD();
+    this.updateHubStats();
+    this.updateUnlocksList();
+  }
+  
+  updateHubStats() {
+    if (this.game.persistentStats) {
+      const stats = this.game.persistentStats.stats;
+      document.getElementById('stat-runs').textContent = stats.runsAttempted;
+      document.getElementById('stat-wins').textContent = stats.runsCompleted;
+      document.getElementById('stat-bosses').textContent = stats.bossesDefeated;
+      document.getElementById('stat-kills').textContent = stats.totalKills;
+    }
+  }
+  
+  updateUnlocksList() {
+    const container = document.getElementById('unlocks-list');
+    if (!container || !this.game.unlockManager) return;
+    
+    container.innerHTML = '';
+    
+    Object.entries(this.game.unlockManager.unlocks).forEach(([id, data]) => {
+      const unlockDiv = document.createElement('div');
+      unlockDiv.className = `unlock-item ${data.unlocked ? 'unlocked' : 'locked'}`;
+      
+      unlockDiv.innerHTML = `
+        <div class="unlock-icon">${data.unlocked ? '✓' : '🔒'}</div>
+        <div class="unlock-info">
+          <h4>${data.name}</h4>
+          <p>${data.description}</p>
+        </div>
+      `;
+      
+      container.appendChild(unlockDiv);
+    });
+  }
+  
+  showLevelTransition() {
+    this.hideAll();
+    document.getElementById('level-transition').style.display = 'flex';
+    
+    if (this.game.runManager && this.game.runManager.currentRun) {
+      const level = this.game.runManager.currentRun.currentLevel;
+      const config = this.game.runManager.getLevelConfig(level);
+      
+      if (config) {
+        document.getElementById('reward-metal').textContent = `+ ${config.completionReward.metal} Metal`;
+        document.getElementById('reward-energy').textContent = `+ ${config.completionReward.energy} Energy`;
+        document.getElementById('next-level-text').textContent = 
+          level < 3 ? `Proceeding to Level ${level + 1}...` : 'Preparing for Boss Fight...';
+        
+        // Animate countdown bar
+        const fill = document.getElementById('level-countdown-fill');
+        if (fill) {
+          fill.style.width = '100%';
+          setTimeout(() => {
+            fill.style.transition = 'width 3s linear';
+            fill.style.width = '0%';
+          }, 100);
+        }
+      }
+    }
+  }
+  
+  showRunSuccessScreen() {
+    this.hideAll();
+    const stats = this.game.statsManager.getStats();
+    
+    // Show unlock if any
+    if (this.game.unlockManager && this.game.unlockManager.lastUnlock) {
+      const unlock = this.game.unlockManager.unlocks[this.game.unlockManager.lastUnlock];
+      document.getElementById('unlock-name').textContent = unlock.name;
+      document.getElementById('unlock-description').textContent = unlock.description;
+      document.getElementById('new-unlock').style.display = 'block';
+    } else {
+      document.getElementById('new-unlock').style.display = 'none';
+    }
+    
+    document.getElementById('success-kills').textContent = stats.enemiesKilled;
+    document.getElementById('success-accuracy').textContent = this.game.statsManager.getAccuracy() + '%';
+    document.getElementById('success-time').textContent = this.game.statsManager.getPlayTime();
+    
+    document.getElementById('run-success-screen').style.display = 'flex';
+    this.hideHUD();
+  }
+  
+  showRunFailedScreen() {
+    this.hideAll();
+    const stats = this.game.statsManager.getStats();
+    const level = this.game.runManager.currentRun?.currentLevel || 0;
+    
+    document.getElementById('failed-level').textContent = `Level ${level}/3`;
+    document.getElementById('failed-kills').textContent = stats.enemiesKilled;
+    document.getElementById('failed-time').textContent = this.game.statsManager.getPlayTime();
+    
+    document.getElementById('run-failed-screen').style.display = 'flex';
     this.hideHUD();
   }
   
@@ -194,7 +331,30 @@ export class MenuManager {
       }
     });
     
-    // Listen for wave updates
+    // Phase 9: Level-based updates
+    this.game.events.on('level:started', (data) => {
+      const waveNumber = document.getElementById('wave-number');
+      const enemiesRemaining = document.getElementById('enemies-remaining');
+      
+      if (waveNumber) {
+        waveNumber.textContent = `LEVEL ${data.level}/${data.total}`;
+      }
+      if (enemiesRemaining) {
+        const totalEnemies = (data.config.enemies.standard || 0) + 
+                            (data.config.enemies.shielded || 0) + 
+                            (data.config.enemies.heavy || 0);
+        enemiesRemaining.textContent = `${totalEnemies} ENEMIES`;
+      }
+    });
+    
+    this.game.events.on('level:enemy_killed', (data) => {
+      const enemiesRemaining = document.getElementById('enemies-remaining');
+      if (enemiesRemaining) {
+        enemiesRemaining.textContent = `${data.remaining} ENEMIES`;
+      }
+    });
+    
+    // Legacy Phase 8: Wave updates
     this.game.events.on('wave:started', (data) => {
       const waveNumber = document.getElementById('wave-number');
       const enemiesRemaining = document.getElementById('enemies-remaining');

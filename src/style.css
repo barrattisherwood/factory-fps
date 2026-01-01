@@ -296,3 +296,266 @@ body {
   margin-top: 10px;
   font-weight: bold;
 }
+
+/* Phase 9: Roguelike Hub Styles */
+.hub-container {
+  text-align: center;
+  padding: 40px;
+  max-width: 900px;
+  width: 90%;
+}
+
+.hub-title {
+  font-size: 56px;
+  color: #00ffcc;
+  margin: 0 0 40px 0;
+  text-shadow: 0 0 20px #00ffcc;
+  letter-spacing: 4px;
+}
+
+.hub-sections {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  margin: 40px 0;
+}
+
+.hub-section {
+  background: rgba(0, 40, 60, 0.8);
+  border: 2px solid #00ffcc;
+  border-radius: 5px;
+  padding: 25px;
+  text-align: left;
+}
+
+.hub-section h2 {
+  color: #00ffcc;
+  font-size: 18px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #00ffcc;
+  padding-bottom: 10px;
+}
+
+.run-info {
+  color: #888;
+  font-size: 14px;
+  margin-top: 15px;
+}
+
+.hub-stats p {
+  margin: 10px 0;
+  color: #ccc;
+}
+
+.hub-stats span {
+  color: #00ffcc;
+  font-weight: bold;
+}
+
+.hub-bottom {
+  margin-top: 30px;
+}
+
+.menu-btn.small {
+  padding: 10px 20px;
+  font-size: 14px;
+  background: transparent;
+  border: 1px solid #666;
+  color: #888;
+}
+
+.menu-btn.small:hover {
+  background: #ff0000;
+  border-color: #ff0000;
+  color: #fff;
+}
+
+/* Unlocks List */
+.unlocks-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.unlock-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin: 5px 0;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #333;
+  border-radius: 3px;
+}
+
+.unlock-item.unlocked {
+  border-color: #00ffcc;
+  background: rgba(0, 255, 204, 0.1);
+}
+
+.unlock-item.locked {
+  opacity: 0.5;
+}
+
+.unlock-icon {
+  font-size: 24px;
+  margin-right: 15px;
+  min-width: 30px;
+  text-align: center;
+}
+
+.unlock-info h4 {
+  color: #00ffcc;
+  font-size: 14px;
+  margin: 0 0 5px 0;
+}
+
+.unlock-info p {
+  color: #888;
+  font-size: 12px;
+  margin: 0;
+}
+
+/* Level Rewards */
+.rewards {
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(0, 255, 204, 0.1);
+  border: 1px solid #00ffcc;
+  border-radius: 3px;
+}
+
+.rewards p {
+  margin: 5px 0;
+  font-size: 16px;
+}
+
+/* Encouragement Message */
+.encouragement {
+  color: #00ff00;
+  font-size: 16px;
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid #00ff00;
+  border-radius: 3px;
+}
+
+/* Unlock Showcase */
+.unlock-showcase {
+  margin: 30px 0;
+  padding: 25px;
+  background: rgba(0, 255, 204, 0.15);
+  border: 2px solid #00ffcc;
+  border-radius: 5px;
+}
+
+.blueprint-card {
+  margin-top: 15px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #00ffcc;
+  border-radius: 3px;
+}
+
+.blueprint-card h3 {
+  color: #00ffcc;
+  font-size: 24px;
+  margin: 0 0 10px 0;
+}
+
+.blueprint-card p {
+  color: #ccc;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Boss Health Bar */
+#boss-health-bar {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid #ff0000;
+  padding: 15px 30px;
+  border-radius: 5px;
+  z-index: 300;
+  min-width: 400px;
+  text-align: center;
+}
+
+.boss-nameplate {
+  color: #ff0000;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px #ff0000;
+}
+
+.boss-hp-container {
+  width: 100%;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid #ff0000;
+  margin: 10px 0;
+  overflow: hidden;
+}
+
+.boss-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff0000, #ff6600);
+  transition: width 0.3s;
+}
+
+.boss-hp-text {
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 5px;
+}
+
+/* Unlock Notification */
+.unlock-notification {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 255, 204, 0.95);
+  border: 3px solid #00ffcc;
+  padding: 25px 40px;
+  border-radius: 5px;
+  z-index: 2000;
+  text-align: center;
+  animation: slideDown 0.5s ease-out;
+  box-shadow: 0 0 30px rgba(0, 255, 204, 0.8);
+}
+
+@keyframes slideDown {
+  from {
+    top: -100px;
+    opacity: 0;
+  }
+  to {
+    top: 100px;
+    opacity: 1;
+  }
+}
+
+.unlock-notification h3 {
+  color: #000;
+  font-size: 24px;
+  margin: 0 0 10px 0;
+}
+
+.unlock-notification p {
+  color: #000;
+  font-size: 18px;
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.unlock-notification .unlock-desc {
+  font-size: 14px;
+  font-weight: normal;
+  color: #003333;
+  margin-top: 10px;
+}

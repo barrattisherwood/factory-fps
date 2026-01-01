@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Player } from './Player.js';
 import { Enemy } from './Enemy.js';
+import { Boss } from './Boss.js';
 import { UI } from './UI.js';
 import { EventBus } from './core/EventBus.js';
 import { ResourceManager } from './managers/ResourceManager.js';
@@ -12,6 +13,9 @@ import { WaveManager } from './managers/WaveManager.js';
 import { StatsManager } from './managers/StatsManager.js';
 import { SoundManager } from './managers/SoundManager.js';
 import { MenuManager } from './managers/MenuManager.js';
+import { RunManager } from './managers/RunManager.js';
+import { UnlockManager } from './managers/UnlockManager.js';
+import { PersistentStats } from './managers/PersistentStats.js';
 
 export class Game {
   constructor(scene, camera) {
@@ -20,6 +24,7 @@ export class Game {
     this.player = null;
     this.enemies = [];
     this.orbs = [];
+    this.boss = null;
     this.timeScale = 1.0; // Global time scale (1.0 = normal)
 
     // Initialize core systems
@@ -30,12 +35,20 @@ export class Game {
     this.resourceManager.setAmmoManager(this.ammoManager);
     this.debug = new DebugRenderer(this.scene);
     
-    // Phase 8: New manager systems
+    // Phase 8: Manager systems
     this.stateManager = new GameStateManager(this);
     this.waveManager = new WaveManager(this);
     this.statsManager = new StatsManager();
     this.soundManager = new SoundManager();
     this.menuManager = new MenuManager(this);
+    
+    // Phase 9: Roguelike systems
+    this.runManager = new RunManager(this);
+    this.unlockManager = new UnlockManager();
+    this.persistentStats = new PersistentStats();
+    
+    // Expose game globally for boss/unlock access
+    window.game = this;
 
     this.setup();
     this.setupEventListeners();
@@ -94,14 +107,30 @@ export class Game {
     // Enemy killed tracking
     this.events.on('enemy:killed', (data) => {
       this.statsManager.onEnemyKilled(data.type);
-      this.waveManager.onEnemyKilled();
+      this.persistentStats.onEnemyKilled();
+      
+      // Phase 9: Use RunManager for level-based gameplay
+      if (this.runManager.currentRun) {
+        this.runManager.onEnemyKilled();
+      } else {
+        // Legacy Phase 8: Wave-based
+        this.waveManager.onEnemyKilled();
+      }
+      
       this.soundManager.playHit();
     });
     
     // Player death
     this.events.on('player:died', () => {
       this.statsManager.finalize();
-      this.stateManager.changeState('DEFEAT');
+      
+      // Phase 9: Run failed
+      if (this.runManager.currentRun) {
+        this.runManager.onRunFailed();
+      } else {
+        // Legacy Phase 8
+        this.stateManager.changeState('DEFEAT');
+      }
     });
     
     // Resource collection tracking
@@ -123,7 +152,29 @@ export class Game {
       this.statsManager.onShotHit();
     });
     
-    // Wave events
+    // Phase 9: Run events
+    this.events.on('run:started', (data) => {
+      this.persistentStats.onRunStarted();
+      console.log(`Run #${data.runId} started`);
+    });
+    
+    this.events.on('run:success', (data) => {
+      const runTime = data.endTime - data.startTime;
+      this.persistentStats.onRunCompleted(runTime);
+      console.log('Run completed successfully!');
+    });
+    
+    this.events.on('boss:defeated', (data) => {
+      this.persistentStats.onBossDefeated();
+      console.log(`Boss defeated: ${data.name}`);
+      
+      // Run success after boss
+      setTimeout(() => {
+        this.runManager.onRunSuccess();
+      }, 2000);
+    });
+    
+    // Legacy Phase 8: Wave events
     this.events.on('wave:started', (data) => {
       this.soundManager.playWaveStart();
       console.log(`Wave ${data.wave} started: ${data.label}`);
@@ -189,9 +240,26 @@ export class Game {
     this.menuManager.showMainMenu();
   }
   
+  showHub() {
+    this.clearEnemies();
+    this.clearOrbs();
+    this.menuManager.showHub();
+  }
+  
   hideAllMenus() {
     this.menuManager.hideAll();
     this.menuManager.showHUD();
+  }
+  
+  showLevelTransition() {
+    const level = this.runManager.currentLevel;
+    const levelData = this.runManager.LEVEL_CONFIG[level];
+    this.menuManager.showLevelTransition({
+      level: level,
+      title: levelData.title,
+      description: levelData.description,
+      enemyCount: levelData.enemyCount
+    });
   }
   
   showWaveTransition() {
@@ -202,6 +270,14 @@ export class Game {
   
   showPauseMenu() {
     this.menuManager.showPauseMenu();
+  }
+  
+  showRunSuccessScreen() {
+    this.menuManager.showRunSuccessScreen();
+  }
+  
+  showRunFailedScreen() {
+    this.menuManager.showRunFailedScreen();
   }
   
   showVictoryScreen() {
@@ -285,7 +361,7 @@ export class Game {
       this.player.update(this.timeScale);
     }
 
-    // Update enemies
+    // Update enemies (including boss if present)
     this.enemies.forEach(enemy => {
       if (enemy.update) {
         enemy.update(this.timeScale);
@@ -327,9 +403,108 @@ export class Game {
         }
       }
     }
+    
+    // Phase 9: Check if level complete (all enemies dead)
+    if (this.runManager.currentRun && this.stateManager.currentState === 'PLAYING') {
+      if (this.enemies.length === 0) {
+        this.runManager.onLevelComplete();
+      }
+    }
   }
 
   restart() {
     location.reload();
+  }
+  
+  // === Phase 9: Roguelike Run Methods ===
+  
+  startRun() {
+    // Reset player and systems
+    this.player.resetHealth();
+    this.clearEnemies();
+    this.clearOrbs();
+    
+    // Reset resources and ammo
+    this.resourceManager.reset();
+    this.ammoManager.reset();
+    
+    // Reset stats for new run
+    this.statsManager.reset();
+    
+    // Start new run
+    this.runManager.startNewRun();
+    
+    // Show HUD and change state
+    this.menuManager.showHUD();
+    this.stateManager.changeState('PLAYING');
+    
+    // Spawn first level
+    this.runManager.spawnCurrentLevel();
+  }
+  
+  loadBossFight() {
+    // Clear any remaining enemies
+    this.clearEnemies();
+    
+    // Show level transition first
+    this.menuManager.showLevelTransition({
+      level: 'BOSS',
+      title: 'BOSS ENCOUNTER',
+      description: 'The Flux Warden awaits...',
+      enemyCount: 1
+    });
+    
+    // Wait for transition, then spawn boss
+    setTimeout(() => {
+      const bossSpawnPos = { x: 0, y: 1, z: -50 };
+      this.boss = new Boss(bossSpawnPos.x, bossSpawnPos.y, bossSpawnPos.z, 'flux_warden');
+      
+      // Set death callback
+      this.boss.onDeath = (orbs) => {
+        orbs.forEach(orb => this.addOrb(orb));
+        
+        // Drop unlock
+        this.boss.dropUnlock();
+        
+        // Remove boss
+        this.scene.remove(this.boss.getMesh());
+        this.boss = null;
+        
+        // Emit boss defeated
+        this.events.emit('boss:defeated', { name: 'Flux Warden' });
+      };
+      
+      this.enemies.push(this.boss);
+      this.scene.add(this.boss.getMesh());
+      
+      // Change state to boss fight
+      this.stateManager.changeState('BOSS_FIGHT');
+      this.menuManager.hideAll();
+      this.menuManager.showHUD();
+    }, 3000);
+  }
+  
+  quitToHub() {
+    this.clearEnemies();
+    this.clearOrbs();
+    
+    // Reset run
+    this.runManager.currentRun = null;
+    
+    this.stateManager.changeState('HUB');
+  }
+  
+  restartRun() {
+    this.startRun();
+  }
+  
+  resetProgress() {
+    // Confirm with user first
+    if (confirm('Are you sure you want to reset ALL progress? This cannot be undone.')) {
+      this.unlockManager.reset();
+      this.persistentStats.reset();
+      alert('Progress reset complete. Starting fresh!');
+      this.stateManager.changeState('HUB');
+    }
   }
 }
