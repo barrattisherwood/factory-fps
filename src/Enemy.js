@@ -251,9 +251,9 @@ export class Enemy {
     console.log(`Enemy [${this.config.name}] defeated!`);
     const orbs = this.createExplosion();
     
-    // Trigger death callback with orbs
+    // Trigger death callback with orbs array
     if (this.onDeath) {
-      orbs.forEach(orb => this.onDeath(orb));
+      this.onDeath(orbs);
     }
   }
 
