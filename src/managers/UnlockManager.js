@@ -14,7 +14,8 @@ export const UNLOCK_DATA = {
 };
 
 export class UnlockManager {
-  constructor() {
+  constructor(eventBus = null) {
+    this.eventBus = eventBus;
     this.unlocks = this.loadUnlocks();
     this.lastUnlock = null; // Track most recent unlock for display
   }
@@ -45,6 +46,14 @@ export class UnlockManager {
         this.lastUnlock = unlockId;
         this.saveUnlocks();
         console.log(`Unlocked: ${this.unlocks[unlockId].name}`);
+        
+        // Emit unlock event (Phase 9)
+        if (this.eventBus) {
+          this.eventBus.emit('unlock:acquired', unlockId);
+        } else if (window.game && window.game.events) {
+          window.game.events.emit('unlock:acquired', unlockId);
+        }
+        
         return true;
       }
     }

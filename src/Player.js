@@ -123,6 +123,13 @@ export class Player {
       this.game.ammoManager.switchType('kinetic');
     } else if (key === '2') {
       this.game.ammoManager.switchType('flux');
+    } else if (key === '3') {
+      // Phase 9: Thermal ammo (requires unlock)
+      if (this.game.ammoManager.isUnlocked('thermal')) {
+        this.game.ammoManager.switchType('thermal');
+      } else {
+        console.log('Thermal ammo not unlocked yet');
+      }
     }
   }
 

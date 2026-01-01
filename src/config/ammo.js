@@ -36,22 +36,25 @@ export const AMMO_CONFIGS = {
     description: 'Flux energy ammunition. 100% damage to shielded, 50% to standard.'
   },
 
-  caustic: {
-    name: 'Caustic Charges',
-    type: 'caustic',
-    color: 0x00ff00,
-    trailColor: 0x88ff00,
-    glowColor: 0x44ff44,
-    damage: 35,
-    speed: 80,
-    maxAmmo: 30,
-    startingAmmo: 0,
-    dropType: 'exotic',
+  thermal: {
+    name: 'Thermal Rounds',
+    type: 'thermal',
+    color: 0xff3300,          // Red/orange
+    trailColor: 0xff6600,     // Orange trail
+    glowColor: 0xff6633,
+    damage: 25,               // Slightly higher base damage
+    speed: 45,                // Slower projectiles
+    maxAmmo: 50,
+    startingAmmo: 0,          // Must be unlocked first
+    dropType: 'thermal_core', // Dropped by heavy enemies
     flashIntensity: 5,
-    flashDuration: 150,
-    specialEffect: 'damage_over_time',
-    description: 'Corrosive projectiles. Deals damage over time.'
+    flashDuration: 140,
+    specialEffect: 'armor_piercing',
+    particleTrail: true,      // Visual distinction
+    trailParticles: 8,
+    description: 'Superheated rounds effective against armored targets. 150% damage to heavy units.'
   }
+}
 };
 
 /**
@@ -78,14 +81,14 @@ export const RESOURCE_CONFIGS = {
     ammoAmount: 10
   },
 
-  exotic: {
-    type: 'exotic',
-    name: 'Exotic Matter',
-    color: 0x00ff00,
-    emissiveColor: 0x00cc00,
-    lightColor: 0x00ff00,
-    ammoType: 'caustic',
-    ammoAmount: 5
+  thermal_core: {
+    type: 'thermal_core',
+    name: 'Thermal Core',
+    color: 0xff3300,          // Red/orange glow (matches Thermal)
+    emissiveColor: 0xff6600,
+    lightColor: 0xff3300,
+    ammoType: 'thermal',
+    ammoAmount: 15           // Higher yield from heavy enemies
   }
 };
 

@@ -51,25 +51,28 @@ export const ENEMY_CONFIGS = {
   },
 
   heavy: {
-    name: 'Heavy Robot',
-    hp: 300,
-    color: 0x666666,
-    coreColor: 0xff6600,
-    coreEmissive: 0xff8800,
+    name: 'Armored Unit',
+    hp: 200,                  // Phase 9: Lower HP but very resistant
+    color: 0x2a2a2a,          // Dark grey/black metallic
+    coreColor: 0xff3300,      // Red glow (heat vulnerability indicator)
+    coreEmissive: 0xff3300,
     metalness: 0.9,
     roughness: 0.3,
-    size: { width: 2, height: 4, depth: 2 },
+    size: { width: 2.25, height: 4.5, depth: 2.25 },  // 1.5x scale
     coreSize: 0.6,
-    damage: 50,
-    speed: 0,
+    damage: 25,               // Higher contact damage
+    speed: 0,                 // Slower movement (handled in Enemy.js)
     drops: [
-      { type: 'metal', amount: 20, chance: 1.0 },
-      { type: 'exotic', amount: 1, chance: 0.3 }
+      { type: 'thermal_core', amount: 15, chance: 1.0 },  // Always drops thermal
+      { type: 'metal', amount: 5, chance: 0.5 }            // Bonus metal sometimes
     ],
     weaknesses: {
-      kinetic: 0.7,
-      flux: 1.2
-    }
+      kinetic: 0.3,           // Very resistant to bullets (30% damage)
+      flux: 0.3,              // Very resistant to energy (30% damage)
+      thermal: 1.5            // WEAK to heat (150% damage)
+    },
+    hasShield: false,
+    description: 'Heavy combat chassis with reinforced plating. Vulnerable to thermal weapons.'
   }
 };
 

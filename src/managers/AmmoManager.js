@@ -10,6 +10,9 @@ export class AmmoManager {
     this.ammo = {};
     this.currentType = 'kinetic';
     
+    // Track which ammo types are unlocked
+    this.unlockedTypes = new Set(['kinetic', 'flux']); // Kinetic/Flux always available
+    
     // Initialize ammo from configs
     this.initializeAmmo();
   }
@@ -20,16 +23,40 @@ export class AmmoManager {
   initializeAmmo() {
     const kineticConfig = getAmmoConfig('kinetic');
     const fluxConfig = getAmmoConfig('flux');
-    const causticConfig = getAmmoConfig('caustic');
+    const thermalConfig = getAmmoConfig('thermal');
 
     this.ammo = {
       kinetic: kineticConfig.startingAmmo,
       flux: fluxConfig.startingAmmo,
-      caustic: causticConfig.startingAmmo
+      thermal: thermalConfig.startingAmmo  // Phase 9: Starts at 0
     };
 
     // Emit initial ammo state
     this.emitAmmoState();
+  }
+  
+  /**
+   * Unlock an ammo type (Phase 9)
+   * @param {string} type - Ammo type to unlock
+   * @returns {boolean} True if unlocked successfully
+   */
+  unlockAmmoType(type) {
+    if (this.ammo.hasOwnProperty(type)) {
+      this.unlockedTypes.add(type);
+      this.eventBus.emit('ammo:unlocked', { type });
+      console.log(`Ammo type unlocked: ${type}`);
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * Check if ammo type is unlocked (Phase 9)
+   * @param {string} type - Ammo type
+   * @returns {boolean} True if unlocked
+   */
+  isUnlocked(type) {
+    return this.unlockedTypes.has(type);
   }
 
   /**
@@ -92,6 +119,13 @@ export class AmmoManager {
   switchType(type) {
     if (this.ammo[type] === undefined) {
       console.warn(`Unknown ammo type: ${type}`);
+      return false;
+    }
+    
+    // Phase 9: Check if unlocked
+    if (!this.isUnlocked(type)) {
+      console.log(`Ammo type ${type} not unlocked yet`);
+      this.eventBus.emit('ammo:locked', { type });
       return false;
     }
 

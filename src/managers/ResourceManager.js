@@ -8,9 +8,10 @@ export class ResourceManager {
     this.resources = {
       metal: 0,
       energy: 0,
-      exotic: 0
+      thermal_core: 0  // Phase 9: For thermal ammo production
     };
     this.ammoManager = null;
+    this.unlockManager = null;  // Phase 9: Check unlocks
   }
 
   /**
@@ -18,6 +19,13 @@ export class ResourceManager {
    */
   setAmmoManager(ammoManager) {
     this.ammoManager = ammoManager;
+  }
+  
+  /**
+   * Optional: set UnlockManager instance to check unlocks (Phase 9)
+   */
+  setUnlockManager(unlockManager) {
+    this.unlockManager = unlockManager;
   }
 
   /**
@@ -35,6 +43,12 @@ export class ResourceManager {
       } else if (type === 'energy') {
         this.ammoManager.add('flux', amount);
         this.eventBus.emit('production:produced', { resource: 'energy', ammo: 'flux', amount });
+      } else if (type === 'thermal_core') {
+        // Phase 9: Only produce thermal if unlocked
+        if (this.unlockManager && this.unlockManager.isUnlocked('thermal_panel_blueprint')) {
+          this.ammoManager.add('thermal', amount);
+          this.eventBus.emit('production:produced', { resource: 'thermal_core', ammo: 'thermal', amount });
+        }
       }
     } else {
       // Still emit production event so UI can react even if no ammo manager is set

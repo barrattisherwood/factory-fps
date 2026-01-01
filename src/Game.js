@@ -44,8 +44,11 @@ export class Game {
     
     // Phase 9: Roguelike systems
     this.runManager = new RunManager(this);
-    this.unlockManager = new UnlockManager();
+    this.unlockManager = new UnlockManager(this.events);
     this.persistentStats = new PersistentStats();
+    
+    // Phase 9: Wire unlock manager to resource manager
+    this.resourceManager.setUnlockManager(this.unlockManager);
     
     // Expose game globally for boss/unlock access
     window.game = this;
@@ -172,6 +175,17 @@ export class Game {
       setTimeout(() => {
         this.runManager.onRunSuccess();
       }, 2000);
+    });
+    
+    // Phase 9: Unlock events
+    this.events.on('unlock:acquired', (unlockId) => {
+      console.log(`Unlock acquired: ${unlockId}`);
+      
+      // Unlock thermal ammo when thermal blueprint is acquired
+      if (unlockId === 'thermal_panel_blueprint') {
+        this.ammoManager.unlockAmmoType('thermal');
+        console.log('Thermal ammo unlocked! Press 3 to switch.');
+      }
     });
     
     // Legacy Phase 8: Wave events

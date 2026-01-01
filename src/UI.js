@@ -4,8 +4,9 @@ export class UI {
     this.ammoDisplay = null;
     this.kineticAmmoText = null;
     this.fluxAmmoText = null;
+    this.thermalAmmoText = null;  // Phase 9
     this.currentAmmoType = 'kinetic';
-    this.ammoAmounts = { kinetic: 50, flux: 20, caustic: 0 }; // Match config starting values
+    this.ammoAmounts = { kinetic: 50, flux: 20, thermal: 0 }; // Phase 9: thermal instead of caustic
     this.crosshair = null;
     this.victoryScreen = null;
 
@@ -82,10 +83,23 @@ export class UI {
       font-size: 20px;
       font-weight: bold;
       color: #00aaff;
+      margin-bottom: 8px;
       text-shadow: 0 0 10px rgba(0, 170, 255, 0.6);
       transition: all 0.2s;
     `;
     this.ammoDisplay.appendChild(this.fluxAmmoText);
+
+    // Thermal ammo line (Phase 9)
+    this.thermalAmmoText = document.createElement('div');
+    this.thermalAmmoText.style.cssText = `
+      font-size: 20px;
+      font-weight: bold;
+      color: #ff3300;
+      text-shadow: 0 0 10px rgba(255, 51, 0, 0.6);
+      transition: all 0.2s;
+      display: none;  /* Hidden until unlocked */
+    `;
+    this.ammoDisplay.appendChild(this.thermalAmmoText);
 
     // Help text
     const helpText = document.createElement('div');
@@ -96,7 +110,7 @@ export class UI {
       border-top: 1px solid #444;
       padding-top: 8px;
     `;
-    helpText.textContent = 'Press 1/2 to switch ammo    [TAB] Factory Status';
+    helpText.textContent = 'Press 1/2/3 to switch ammo    [TAB] Factory Status';
     this.ammoDisplay.appendChild(helpText);
 
     document.body.appendChild(this.ammoDisplay);
@@ -147,20 +161,26 @@ export class UI {
     const kineticActive = this.currentAmmoType === 'kinetic' ? ' [ACTIVE]' : '';
     this.kineticAmmoText.textContent = `KINETIC: ${this.ammoAmounts.kinetic}${kineticActive}`;
     
-    // Scale up active ammo type for visibility
-    if (this.currentAmmoType === 'kinetic') {
-      this.kineticAmmoText.style.fontSize = '22px';
-      this.fluxAmmoText.style.fontSize = '18px';
-    }
-
     // Flux line
     const fluxActive = this.currentAmmoType === 'flux' ? ' [ACTIVE]' : '';
     this.fluxAmmoText.textContent = `FLUX: ${this.ammoAmounts.flux}${fluxActive}`;
+    
+    // Thermal line (Phase 9 - show if unlocked)
+    if (this.ammoAmounts.thermal !== undefined) {
+      const thermalActive = this.currentAmmoType === 'thermal' ? ' [ACTIVE]' : '';
+      this.thermalAmmoText.textContent = `THERMAL: ${this.ammoAmounts.thermal}${thermalActive}`;
+      
+      // Show thermal display if any ammo exists or if it's been unlocked
+      if (this.ammoAmounts.thermal > 0 || window.game?.unlockManager?.isUnlocked('thermal_panel_blueprint')) {
+        this.thermalAmmoText.style.display = 'block';
+      }
+    }
 
     // Scale up active ammo type for visibility
-    if (this.currentAmmoType === 'flux') {
-      this.fluxAmmoText.style.fontSize = '22px';
-      this.kineticAmmoText.style.fontSize = '18px';
+    this.kineticAmmoText.style.fontSize = this.currentAmmoType === 'kinetic' ? '22px' : '18px';
+    this.fluxAmmoText.style.fontSize = this.currentAmmoType === 'flux' ? '22px' : '18px';
+    if (this.thermalAmmoText) {
+      this.thermalAmmoText.style.fontSize = this.currentAmmoType === 'thermal' ? '22px' : '18px';
     }
   }
 
