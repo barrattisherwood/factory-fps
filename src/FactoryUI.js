@@ -6,8 +6,8 @@ export class FactoryUI {
     this.game = game;
     this.isOpen = false;
 
-    this.resources = { metal: 0, energy: 0 };
-    this.ammo = { kinetic: 0, flux: 0 };
+    this.resources = { metal: 0, energy: 0, thermal_core: 0 };
+    this.ammo = { kinetic: 0, flux: 0, thermal: 0 };
 
     this.createOverlay();
     this.setupEventListeners();
@@ -57,14 +57,26 @@ export class FactoryUI {
 
     // Header
     const header = document.createElement('div');
-    header.textContent = 'ORBITAL RIG - PRODUCTION';
+    header.textContent = 'ORBITAL RIG - AUTO-PRODUCTION';
     Object.assign(header.style, {
       fontSize: '20px',
       textAlign: 'center',
-      marginBottom: '12px',
-      color: '#e0e0e0'
+      marginBottom: '8px',
+      color: '#00ffcc'
     });
     this.panel.appendChild(header);
+    
+    // Subheader explaining auto-production
+    const subheader = document.createElement('div');
+    subheader.textContent = 'Resources are automatically converted to ammunition when collected';
+    Object.assign(subheader.style, {
+      fontSize: '12px',
+      textAlign: 'center',
+      marginBottom: '12px',
+      color: '#888',
+      fontStyle: 'italic'
+    });
+    this.panel.appendChild(subheader);
 
     // Resources area
     const resBox = document.createElement('div');
@@ -95,6 +107,8 @@ export class FactoryUI {
     this.productionArea = document.createElement('div');
     this.productionArea.style.display = 'flex';
     this.productionArea.style.justifyContent = 'space-between';
+    this.productionArea.style.flexWrap = 'wrap';
+    this.productionArea.style.gap = '10px';
 
     // Kinetic panel
     this.kineticPanel = this.createPanel('KINETIC PANEL', '#ff6600');
@@ -103,6 +117,11 @@ export class FactoryUI {
     // Flux panel
     this.fluxPanel = this.createPanel('FLUX PANEL', '#00aaff');
     this.productionArea.appendChild(this.fluxPanel.container);
+    
+    // Thermal panel (Phase 9 - hidden until unlocked)
+    this.thermalPanel = this.createPanel('THERMAL PANEL', '#ff3300');
+    this.thermalPanel.container.style.display = 'none'; // Hidden by default
+    this.productionArea.appendChild(this.thermalPanel.container);
 
     this.panel.appendChild(this.productionArea);
 
@@ -188,7 +207,8 @@ export class FactoryUI {
 
   setupEventListeners() {
     this.eventBus.on('resource:changed', (data) => {
-      if (data.type === 'metal' || data.type === 'energy') {
+      // Track all resource types
+      if (this.resources.hasOwnProperty(data.type)) {
         this.resources[data.type] = data.amount;
         this.updateDisplay();
       }
@@ -200,16 +220,18 @@ export class FactoryUI {
     });
 
     this.eventBus.on('ammo:changed', (data) => {
-      if (data.type === 'kinetic' || data.type === 'flux') {
+      // Track all ammo types
+      if (this.ammo.hasOwnProperty(data.type)) {
         this.ammo[data.type] = data.amount;
         this.updateDisplay();
       }
     });
 
     this.eventBus.on('production:produced', (data) => {
-      // small pulse animation when production occurs
+      // Pulse animation when production occurs
       if (data.resource === 'metal') this.pulsePanel(this.kineticPanel);
       if (data.resource === 'energy') this.pulsePanel(this.fluxPanel);
+      if (data.resource === 'thermal_core' && this.thermalPanel) this.pulsePanel(this.thermalPanel);
     });
   }
 
@@ -235,25 +257,37 @@ export class FactoryUI {
   }
 
   updateDisplay() {
-    // Update resource lines
-    this.metalLine.textContent = `├─ Metal:  ${this.resources.metal}  ` + this.renderBar(this.resources.metal, 80, '#ff6600');
-    this.energyLine.textContent = `└─ Energy: ${this.resources.energy}  ` + this.renderBar(this.resources.energy, 80, '#00aaff');
+    // Update resource lines (show that they're being stored, not sitting idle)
+    this.metalLine.textContent = `├─ Metal:  ${this.resources.metal} collected  ` + this.renderBar(this.resources.metal, 80, '#ff6600');
+    this.energyLine.textContent = `└─ Energy: ${this.resources.energy} collected  ` + this.renderBar(this.resources.energy, 80, '#00aaff');
 
     // Kinetic panel
-    this.kineticPanel.inputLine.textContent = '├─ Input: Metal (auto)';
-    this.kineticPanel.outputLine.textContent = '├─ Output: Kinetic Ammo';
+    this.kineticPanel.inputLine.textContent = '├─ Input: Metal → Auto-Convert';
+    this.kineticPanel.outputLine.textContent = '├─ Output: Kinetic Ammo (instant)';
     this.kineticPanel.stockLine.textContent = `├─ Current Stock: ${this.ammo.kinetic || 0} rounds`;
     const metal = this.resources.metal || 0;
-    this.kineticPanel.statusLine.textContent = metal < 10 ? '└─ Status: Low Resources' : '└─ Status: Producing...';
-    this.kineticPanel.barInner.style.width = Math.min(100, (metal / 80) * 100) + '%';
+    this.kineticPanel.statusLine.textContent = '└─ Status: Active (converts on pickup)';
+    this.kineticPanel.barInner.style.width = Math.min(100, (this.ammo.kinetic / 100) * 100) + '%';
 
     // Flux panel
-    this.fluxPanel.inputLine.textContent = '├─ Input: Energy (auto)';
-    this.fluxPanel.outputLine.textContent = '├─ Output: Flux Ammo';
+    this.fluxPanel.inputLine.textContent = '├─ Input: Energy → Auto-Convert';
+    this.fluxPanel.outputLine.textContent = '├─ Output: Flux Ammo (instant)';
     this.fluxPanel.stockLine.textContent = `├─ Current Stock: ${this.ammo.flux || 0} rounds`;
     const energy = this.resources.energy || 0;
-    this.fluxPanel.statusLine.textContent = energy < 10 ? '└─ Status: Low Resources' : '└─ Status: Producing...';
-    this.fluxPanel.barInner.style.width = Math.min(100, (energy / 80) * 100) + '%';
+    this.fluxPanel.statusLine.textContent = '└─ Status: Active (converts on pickup)';
+    this.fluxPanel.barInner.style.width = Math.min(100, (this.ammo.flux / 50) * 100) + '%';
+    
+    // Thermal panel (if unlocked)
+    if (this.thermalPanel && (this.resources.thermal_core > 0 || this.ammo.thermal > 0 || window.game?.unlockManager?.isUnlocked('thermal_panel_blueprint'))) {
+      this.thermalPanel.container.style.display = 'block';
+      this.thermalPanel.inputLine.textContent = '├─ Input: Thermal Core → Auto-Convert';
+      this.thermalPanel.outputLine.textContent = '├─ Output: Thermal Ammo (instant)';
+      this.thermalPanel.stockLine.textContent = `├─ Current Stock: ${this.ammo.thermal || 0} rounds`;
+      this.thermalPanel.statusLine.textContent = '└─ Status: Active (converts on pickup)';
+      this.thermalPanel.barInner.style.width = Math.min(100, (this.ammo.thermal / 50) * 100) + '%';
+    } else if (this.thermalPanel) {
+      this.thermalPanel.container.style.display = 'none';
+    }
   }
 
   renderBar(value, max, color) {
