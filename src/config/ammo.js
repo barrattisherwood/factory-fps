@@ -54,7 +54,6 @@ export const AMMO_CONFIGS = {
     trailParticles: 8,
     description: 'Superheated rounds effective against armored targets. 150% damage to heavy units.'
   }
-}
 };
 
 /**
