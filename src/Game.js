@@ -102,6 +102,9 @@ export class Game {
     // Create factory UI overlay
     this.factoryUI = new FactoryUI(this.events, this);
     
+    // Wire factory UI to managers (after all managers are created)
+    this.factoryUI.setManagers(this.resourceManager, this.ammoManager, this.unlockManager);
+    
     // Setup HUD event listeners
     this.menuManager.setupHUDEventListeners();
   }

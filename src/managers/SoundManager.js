@@ -144,6 +144,38 @@ export class SoundManager {
     }
   }
   
+  playConversion() {
+    if (!this.isInitialized || !this.audioContext) return;
+    
+    try {
+      // Conversion success sound - rising tone
+      const osc = this.audioContext.createOscillator();
+      const gain = this.audioContext.createGain();
+      
+      osc.connect(gain);
+      gain.connect(this.audioContext.destination);
+      
+      // Rising tone for successful conversion
+      osc.frequency.setValueAtTime(300, this.audioContext.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(
+        600, 
+        this.audioContext.currentTime + 0.3
+      );
+      osc.type = 'sine';
+      
+      gain.gain.setValueAtTime(this.volume * 0.6, this.audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(
+        0.01, 
+        this.audioContext.currentTime + 0.3
+      );
+      
+      osc.start();
+      osc.stop(this.audioContext.currentTime + 0.3);
+    } catch (e) {
+      console.warn('Sound playback error:', e);
+    }
+  }
+  
   setVolume(value) {
     this.volume = Math.max(0, Math.min(1, value));
   }

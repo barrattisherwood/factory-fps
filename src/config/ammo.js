@@ -11,7 +11,7 @@ export const AMMO_CONFIGS = {
     glowColor: 0xff9944,
     damage: 20,               // Phase 6 balance
     speed: 100,
-    maxAmmo: 100,
+    maxAmmo: 300,             // Increased from 100
     startingAmmo: 50,         // Starting with 50
     dropType: 'metal',        // Dropped by standard robots
     flashIntensity: 3,
@@ -27,8 +27,8 @@ export const AMMO_CONFIGS = {
     glowColor: 0x44bbff,
     damage: 20,               // Same base damage, but bonus multiplier vs shielded
     speed: 120,
-    maxAmmo: 50,
-    startingAmmo: 20,         // Start with enough to kill 1 shielded robot
+    maxAmmo: 200,             // Increased from 50
+    startingAmmo: 0,          // Start with zero - must collect
     dropType: 'energy',       // Dropped by shielded robots
     flashIntensity: 4,
     flashDuration: 100,
@@ -44,7 +44,7 @@ export const AMMO_CONFIGS = {
     glowColor: 0xff6633,
     damage: 25,               // Slightly higher base damage
     speed: 45,                // Slower projectiles
-    maxAmmo: 50,
+    maxAmmo: 200,             // Increased from 50
     startingAmmo: 0,          // Must be unlocked first
     dropType: 'thermal_core', // Dropped by heavy enemies
     flashIntensity: 5,

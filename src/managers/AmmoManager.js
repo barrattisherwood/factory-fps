@@ -89,26 +89,44 @@ export class AmmoManager {
   }
 
   /**
-   * Add ammo (from pickups)
+   * Add ammo (refill - respects max caps)
    * @param {string} type - Ammo type
    * @param {number} amount - Amount to add
+   * @returns {boolean} True if any ammo was added
    */
   add(type, amount) {
     if (this.ammo[type] === undefined) {
       console.warn(`Unknown ammo type: ${type}`);
-      return;
+      return false;
     }
 
     const config = getAmmoConfig(type);
+    const before = this.ammo[type];
     this.ammo[type] = Math.min(this.ammo[type] + amount, config.maxAmmo);
+    const actualAdded = this.ammo[type] - before;
 
-    this.eventBus.emit('ammo:changed', {
-      type,
-      amount: this.ammo[type],
-      delta: amount
-    });
+    if (actualAdded > 0) {
+      this.eventBus.emit('ammo:changed', {
+        type,
+        amount: this.ammo[type],
+        delta: actualAdded
+      });
 
-    console.log(`+${amount} ${type} ammo (Total: ${this.ammo[type]}/${config.maxAmmo})`);
+      console.log(`+${actualAdded} ${type} ammo (Total: ${this.ammo[type]}/${config.maxAmmo})`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Refill ammo (for factory conversion)
+   * @param {string} type - Ammo type
+   * @param {number} amount - Amount to add
+   * @returns {boolean} True if any ammo was added
+   */
+  refill(type, amount) {
+    return this.add(type, amount);
   }
 
   /**

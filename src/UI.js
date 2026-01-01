@@ -182,6 +182,108 @@ export class UI {
     if (this.thermalAmmoText) {
       this.thermalAmmoText.style.fontSize = this.currentAmmoType === 'thermal' ? '22px' : '18px';
     }
+    
+    // Low ammo warnings
+    this.updateLowAmmoWarnings();
+    this.updateFactoryHint();
+  }
+  
+  updateLowAmmoWarnings() {
+    // Low ammo visual feedback
+    const ammoElements = [
+      { el: this.kineticAmmoText, type: 'kinetic', amount: this.ammoAmounts.kinetic },
+      { el: this.fluxAmmoText, type: 'flux', amount: this.ammoAmounts.flux },
+      { el: this.thermalAmmoText, type: 'thermal', amount: this.ammoAmounts.thermal }
+    ];
+    
+    ammoElements.forEach(({ el, type, amount }) => {
+      if (!el) return;
+      
+      // Remove all warning classes first
+      el.classList.remove('low-ammo', 'empty-ammo');
+      el.style.animation = '';
+      
+      if (amount === 0) {
+        el.classList.add('empty-ammo');
+        el.style.opacity = '0.5';
+      } else if (amount < 20 && amount > 0) {
+        el.classList.add('low-ammo');
+        el.style.animation = 'low-ammo-pulse 1s infinite';
+      } else {
+        el.style.opacity = '1';
+      }
+    });
+  }
+  
+  updateFactoryHint() {
+    // Show factory hint if low on active ammo
+    const activeAmount = this.ammoAmounts[this.currentAmmoType];
+    
+    if (activeAmount < 20 && activeAmount > 0) {
+      this.showFactoryHint();
+    } else {
+      this.hideFactoryHint();
+    }
+  }
+  
+  showFactoryHint() {
+    let hint = document.getElementById('factory-hint');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.id = 'factory-hint';
+      hint.className = 'factory-hint-popup';
+      hint.innerHTML = `
+        <span class="hint-icon">⚠️</span>
+        <span class="hint-text">LOW AMMO - Press TAB to convert resources</span>
+      `;
+      hint.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 200, 0, 0.95);
+        color: #000;
+        padding: 15px 30px;
+        border: 2px solid #ff6600;
+        font-size: 18px;
+        font-weight: bold;
+        z-index: 500;
+        animation: hint-pulse 1.5s infinite;
+        font-family: 'Courier New', monospace;
+        border-radius: 5px;
+        text-align: center;
+      `;
+      document.body.appendChild(hint);
+      
+      // Add animations to document if not already present
+      if (!document.getElementById('ammo-warning-styles')) {
+        const style = document.createElement('style');
+        style.id = 'ammo-warning-styles';
+        style.textContent = `
+          @keyframes low-ammo-pulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 200, 0, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(255, 200, 0, 0.8); }
+          }
+          @keyframes hint-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+          }
+          .hint-icon {
+            font-size: 24px;
+            margin-right: 10px;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
+    hint.style.display = 'block';
+  }
+  
+  hideFactoryHint() {
+    const hint = document.getElementById('factory-hint');
+    if (hint) {
+      hint.style.display = 'none';
+    }
   }
 
   flashAmmoDisplay() {

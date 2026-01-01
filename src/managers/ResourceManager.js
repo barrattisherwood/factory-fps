@@ -29,31 +29,11 @@ export class ResourceManager {
   }
 
   /**
-   * Collect resource (used by orbs). Emits collected event and auto-produces ammo.
+   * Collect resource (used by orbs). Just stores - NO auto-conversion.
    */
   collectResource(type, amount) {
     this.add(type, amount);
     this.eventBus.emit('resource:collected', { type, amount });
-
-    // Auto-produce ammo mapping
-    if (this.ammoManager) {
-      if (type === 'metal') {
-        this.ammoManager.add('kinetic', amount);
-        this.eventBus.emit('production:produced', { resource: 'metal', ammo: 'kinetic', amount });
-      } else if (type === 'energy') {
-        this.ammoManager.add('flux', amount);
-        this.eventBus.emit('production:produced', { resource: 'energy', ammo: 'flux', amount });
-      } else if (type === 'thermal_core') {
-        // Phase 9: Only produce thermal if unlocked
-        if (this.unlockManager && this.unlockManager.isUnlocked('thermal_panel_blueprint')) {
-          this.ammoManager.add('thermal', amount);
-          this.eventBus.emit('production:produced', { resource: 'thermal_core', ammo: 'thermal', amount });
-        }
-      }
-    } else {
-      // Still emit production event so UI can react even if no ammo manager is set
-      this.eventBus.emit('production:produced', { resource: type, ammo: null, amount });
-    }
   }
 
   /**
@@ -137,8 +117,85 @@ export class ResourceManager {
     this.resources = {
       metal: 0,
       energy: 0,
-      exotic: 0
+      thermal_core: 0
     };
     this.eventBus.emit('resource:reset');
+  }
+
+  /**
+   * Manual conversion: Convert resources to ammo
+   * @param {string} resourceType - Resource type (metal, energy, thermal_core)
+   * @param {number} amount - Amount to convert
+   * @returns {boolean} True if successful
+   */
+  convertToAmmo(resourceType, amount) {
+    // Validate we have enough
+    if (this.resources[resourceType] < amount) {
+      console.warn(`Not enough ${resourceType}: have ${this.resources[resourceType]}, need ${amount}`);
+      return false;
+    }
+
+    // Convert to appropriate ammo type
+    const ammoTypeMap = {
+      'metal': 'kinetic',
+      'energy': 'flux',
+      'thermal_core': 'thermal'
+    };
+
+    const ammoType = ammoTypeMap[resourceType];
+
+    if (!ammoType) {
+      console.error(`Unknown resource type: ${resourceType}`);
+      return false;
+    }
+
+    // Check if ammo type is unlocked
+    if (ammoType === 'thermal' && this.unlockManager && !this.unlockManager.isUnlocked('thermal_panel_blueprint')) {
+      console.warn('Thermal ammo not unlocked');
+      return false;
+    }
+
+    // Check if we have ammo manager
+    if (!this.ammoManager) {
+      console.error('AmmoManager not set');
+      return false;
+    }
+
+    // Deduct from resources
+    this.resources[resourceType] -= amount;
+
+    // Add to ammo (1:1 conversion)
+    const success = this.ammoManager.refill(ammoType, amount);
+
+    if (success) {
+      this.eventBus.emit('resource:converted', {
+        resourceType,
+        ammoType,
+        amount,
+        remaining: this.resources[resourceType]
+      });
+      this.eventBus.emit('resource:changed', {
+        type: resourceType,
+        amount: this.resources[resourceType],
+        delta: -amount
+      });
+      console.log(`Converted ${amount} ${resourceType} → ${amount} ${ammoType}`);
+    } else {
+      // Refund if conversion failed
+      this.resources[resourceType] += amount;
+    }
+
+    return success;
+  }
+
+  /**
+   * Helper to convert all of a resource type
+   * @param {string} resourceType - Resource type
+   * @returns {boolean} True if successful
+   */
+  convertAll(resourceType) {
+    const amount = this.resources[resourceType];
+    if (amount === 0) return false;
+    return this.convertToAmmo(resourceType, amount);
   }
 }

@@ -16,7 +16,7 @@ export const ENEMY_CONFIGS = {
     damage: 25,
     speed: 0,
     drops: [
-      { type: 'metal', amount: 10, chance: 1.0 }
+      { type: 'metal', amount: 15, chance: 1.0 }  // Increased from 10
     ],
     weaknesses: {
       kinetic: 1.0,           // 100% damage (20 per shot)
@@ -38,7 +38,8 @@ export const ENEMY_CONFIGS = {
     damage: 30,
     speed: 0,
     drops: [
-      { type: 'energy', amount: 10, chance: 1.0 }  // Blue orb drops
+      { type: 'energy', amount: 15, chance: 1.0 },  // Increased from 10
+      { type: 'metal', amount: 10, chance: 0.7 }     // NEW: Also drops metal
     ],
     weaknesses: {
       kinetic: 0.25,          // 25% damage - very resistant
@@ -63,8 +64,9 @@ export const ENEMY_CONFIGS = {
     damage: 25,               // Higher contact damage
     speed: 0,                 // Slower movement (handled in Enemy.js)
     drops: [
-      { type: 'thermal_core', amount: 15, chance: 1.0 },  // Always drops thermal
-      { type: 'metal', amount: 5, chance: 0.5 }            // Bonus metal sometimes
+      { type: 'thermal_core', amount: 15, chance: 1.0 },  // Thermal core drop
+      { type: 'metal', amount: 15, chance: 0.8 },         // Increased: Usually drops metal
+      { type: 'energy', amount: 10, chance: 0.5 }         // NEW: Sometimes energy
     ],
     weaknesses: {
       kinetic: 0.3,           // Very resistant to bullets (30% damage)
