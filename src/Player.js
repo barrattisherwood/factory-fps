@@ -51,7 +51,12 @@ export class Player {
     this.isLocked = false;
 
     // Event listeners
-    document.addEventListener('click', () => this.lock());
+    document.addEventListener('click', () => {
+      // Only lock pointer when in PLAYING state (not in menus)
+      if (this.game && this.game.stateManager && this.game.stateManager.currentState === 'PLAYING') {
+        this.lock();
+      }
+    });
     document.addEventListener('pointerlockchange', () => this.onPointerLockChange());
     document.addEventListener('keydown', (e) => this.onKeyDown(e));
     document.addEventListener('keyup', (e) => this.onKeyUp(e));
