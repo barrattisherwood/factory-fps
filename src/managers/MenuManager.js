@@ -118,6 +118,11 @@ export class MenuManager {
     document.getElementById('defeat-screen').style.display = 'none';
     document.getElementById('run-success-screen').style.display = 'none';
     document.getElementById('run-failed-screen').style.display = 'none';
+    
+    // Unlock pointer so mouse is visible in menus
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
   }
   
   showMainMenu() {

@@ -28,7 +28,7 @@ export const AMMO_CONFIGS = {
     damage: 20,               // Same base damage, but bonus multiplier vs shielded
     speed: 120,
     maxAmmo: 200,             // Increased from 50
-    startingAmmo: 0,          // Start with zero - must collect
+    startingAmmo: 20,         // Start with 20 - enough for one shielded enemy
     dropType: 'energy',       // Dropped by shielded robots
     flashIntensity: 4,
     flashDuration: 100,

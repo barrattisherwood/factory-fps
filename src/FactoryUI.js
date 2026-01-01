@@ -336,11 +336,19 @@ export class FactoryUI {
       if (this.game.setTimeScale) {
         this.game.setTimeScale(0.3); // Slow time
       }
+      // Unlock pointer so mouse is visible
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
       this.updateDisplay();
     } else {
       overlay.style.display = 'none';
       if (this.game.setTimeScale) {
         this.game.setTimeScale(1.0); // Resume time
+      }
+      // Re-lock pointer for FPS controls
+      if (this.game.player && this.game.player.controls) {
+        this.game.player.controls.lock();
       }
     }
   }
