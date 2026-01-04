@@ -14,7 +14,7 @@ export const ENEMY_CONFIGS = {
     size: { width: 1.5, height: 3, depth: 1.5 },
     coreSize: 0.4,
     damage: 25,
-    speed: 0,
+    speed: 2.0,               // Fast movement
     drops: [
       { type: 'metal', amount: 15, chance: 1.0 }  // Increased from 10
     ],
@@ -22,7 +22,15 @@ export const ENEMY_CONFIGS = {
       kinetic: 1.0,           // 100% damage (20 per shot)
       flux: 0.5               // 50% damage (10 per shot)
     },
-    hasShield: false
+    hasShield: false,
+    weakSpot: {
+      position: { x: 0, y: 0.8, z: 0.9 },  // Front, slightly above center
+      radius: 0.3,                        // Hit detection sphere
+      kineticMultiplier: 3.0,             // 3x damage on crit
+      fluxMultiplier: 2.0,                // 2x damage on crit with energy
+      visualColor: 0xff6600,              // Bright orange for visibility
+      label: 'Core'
+    }
   },
 
   shielded: {
@@ -36,7 +44,7 @@ export const ENEMY_CONFIGS = {
     size: { width: 1.5, height: 3, depth: 1.5 },
     coreSize: 0.4,
     damage: 30,
-    speed: 0,
+    speed: 1.5,               // Medium movement
     drops: [
       { type: 'energy', amount: 15, chance: 1.0 },  // Increased from 10
       { type: 'metal', amount: 10, chance: 0.7 }     // NEW: Also drops metal
@@ -48,7 +56,15 @@ export const ENEMY_CONFIGS = {
     hasShield: true,          // Will show blue shield visual
     shieldColor: 0x00aaff,    // Electric blue
     shieldEmissive: 0x0088ff,
-    shieldIntensity: 0.6
+    shieldIntensity: 0.6,
+    weakSpot: {
+      position: { x: 0, y: 0.5, z: 0.9 },  // Front, center height
+      radius: 0.25,                       // Smaller = harder
+      kineticMultiplier: 4.0,             // 4x damage (kinetic can crit)
+      // No flux multiplier - energy doesn't crit shields
+      visualColor: 0xffff00,              // Bright yellow for visibility
+      label: 'Power Core'
+    }
   },
 
   heavy: {
@@ -62,7 +78,7 @@ export const ENEMY_CONFIGS = {
     size: { width: 2.25, height: 4.5, depth: 2.25 },  // 1.5x scale
     coreSize: 0.6,
     damage: 25,               // Higher contact damage
-    speed: 0,                 // Slower movement (handled in Enemy.js)
+    speed: 1.2,               // Slow movement
     drops: [
       { type: 'thermal_core', amount: 15, chance: 1.0 },  // Thermal core drop
       { type: 'metal', amount: 15, chance: 0.8 },         // Increased: Usually drops metal
@@ -74,7 +90,14 @@ export const ENEMY_CONFIGS = {
       thermal: 1.5            // WEAK to heat (150% damage)
     },
     hasShield: false,
-    description: 'Heavy combat chassis with reinforced plating. Vulnerable to thermal weapons.'
+    description: 'Heavy combat chassis with reinforced plating. Vulnerable to thermal weapons.',
+    weakSpot: {
+      position: { x: 0, y: 1.5, z: 1.3 },  // Front, higher up to be visible on tall enemy
+      radius: 0.35,                        // Larger for visibility on big enemy
+      kineticMultiplier: 5.0,             // 5x damage (compensates for 0.3 resistance)
+      visualColor: 0xff3300,              // Bright red for visibility
+      label: 'Heat Vent'
+    }
   }
 };
 

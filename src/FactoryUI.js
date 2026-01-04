@@ -17,9 +17,15 @@ export class FactoryUI {
   }
   
   setManagers(resourceManager, ammoManager, unlockManager) {
+    console.log('setManagers called with:', { resourceManager, ammoManager, unlockManager });
     this.resourceManager = resourceManager;
     this.ammoManager = ammoManager;
     this.unlockManager = unlockManager;
+    console.log('Managers set. Current state:', {
+      hasResourceManager: !!this.resourceManager,
+      hasAmmoManager: !!this.ammoManager,
+      hasUnlockManager: !!this.unlockManager
+    });
   }
 
   bindKeys() {
@@ -346,8 +352,9 @@ export class FactoryUI {
       if (this.game.setTimeScale) {
         this.game.setTimeScale(1.0); // Resume time
       }
-      // Re-lock pointer for FPS controls
-      if (this.game.player && this.game.player.controls) {
+      // Pointer will re-lock on next click automatically
+      // Don't force it here to avoid issues
+      if (false && this.game.player && this.game.player.controls) {
         this.game.player.controls.lock();
       }
     }
@@ -381,17 +388,29 @@ export class FactoryUI {
   }
 
   updateDisplay() {
-    if (!this.isOpen || !this.resourceManager || !this.ammoManager) return;
+    console.log('updateDisplay called. Managers:', {
+      isOpen: this.isOpen,
+      hasResourceManager: !!this.resourceManager,
+      hasAmmoManager: !!this.ammoManager,
+      hasUnlockManager: !!this.unlockManager,
+      ammoManagerType: typeof this.ammoManager,
+      ammoManagerMethods: this.ammoManager ? Object.getOwnPropertyNames(Object.getPrototypeOf(this.ammoManager)) : null
+    });
+    
+    if (!this.isOpen || !this.resourceManager || !this.ammoManager) {
+      console.warn('updateDisplay aborted - missing managers');
+      return;
+    }
 
     // Update resource counts
     document.getElementById('metal-stored').textContent = this.resourceManager.get('metal');
     document.getElementById('energy-stored').textContent = this.resourceManager.get('energy');
-    document.getElementById('thermal-stored').textContent = this.resourceManager.get('thermal_core');
+    document.getElementById('thermal_core-stored').textContent = this.resourceManager.get('thermal_core');
 
     // Update ammo counts
-    document.getElementById('kinetic-current').textContent = this.ammoManager.getAmount('kinetic');
-    document.getElementById('flux-current').textContent = this.ammoManager.getAmount('flux');
-    document.getElementById('thermal-current').textContent = this.ammoManager.getAmount('thermal');
+    document.getElementById('kinetic-current').textContent = this.ammoManager.get('kinetic');
+    document.getElementById('flux-current').textContent = this.ammoManager.get('flux');
+    document.getElementById('thermal-current').textContent = this.ammoManager.get('thermal');
 
     // Update button states
     this.updateButtonStates();
@@ -400,7 +419,15 @@ export class FactoryUI {
     const thermalPanel = document.getElementById('panel-thermal');
     const thermalBtn = document.getElementById('btn-convert-thermal');
 
-    if (this.unlockManager && this.unlockManager.isUnlocked('thermal_panel_blueprint')) {
+    const isThermalUnlocked = this.unlockManager && this.unlockManager.isUnlocked('thermal_panel_blueprint');
+    console.log('Thermal unlock check:', {
+      hasUnlockManager: !!this.unlockManager,
+      isUnlocked: isThermalUnlocked,
+      unlocks: this.unlockManager ? this.unlockManager.unlocks : null
+    });
+
+    if (isThermalUnlocked) {
+      console.log('Unlocking thermal panel UI');
       thermalPanel.classList.remove('locked');
       thermalPanel.style.opacity = '1';
       thermalPanel.style.borderColor = '#ff3300';
@@ -435,13 +462,13 @@ export class FactoryUI {
       const button = document.getElementById(btn);
       if (!button) return;
 
-      const hasResources = this.resourceManager.get(resource) > 0;
-      const notAtMax = this.ammoManager.getAmount(ammo) < this.getMaxAmmo(ammo);
-
       // Skip state updates for locked thermal
       if (btn === 'btn-convert-thermal' && this.unlockManager && !this.unlockManager.isUnlocked('thermal_panel_blueprint')) {
-        return;
+        return; // Keep it locked, don't update
       }
+
+      const hasResources = this.resourceManager.get(resource) > 0;
+      const notAtMax = this.ammoManager.get(ammo) < this.getMaxAmmo(ammo);
 
       button.disabled = !hasResources || !notAtMax;
 
@@ -455,7 +482,7 @@ export class FactoryUI {
       }
 
       // Pulse if low ammo + have resources
-      if (this.ammoManager.getAmount(ammo) < 20 && hasResources) {
+      if (this.ammoManager.get(ammo) < 20 && hasResources) {
         button.classList.add('pulse');
       } else {
         button.classList.remove('pulse');

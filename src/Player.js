@@ -52,9 +52,12 @@ export class Player {
 
     // Event listeners
     document.addEventListener('click', () => {
-      // Only lock pointer when in PLAYING state (not in menus)
-      if (this.game && this.game.stateManager && this.game.stateManager.currentState === 'PLAYING') {
-        this.lock();
+      // Only lock pointer when in PLAYING state and factory UI is not open
+      if (this.game && this.game.stateManager && this.game.stateManager.isPlaying()) {
+        // Don't lock if factory UI is open
+        if (!this.game.factoryUI || !this.game.factoryUI.isOpen) {
+          this.lock();
+        }
       }
     });
     document.addEventListener('pointerlockchange', () => this.onPointerLockChange());
@@ -123,6 +126,19 @@ export class Player {
     const key = e.key.toLowerCase();
     this.keys[key] = true;
 
+    // ESC key to pause - prevent default to avoid pointer lock conflicts
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (this.game.stateManager && this.game.stateManager.isPlaying()) {
+        // Exit pointer lock first
+        if (document.pointerLockElement) {
+          document.exitPointerLock();
+        }
+        this.game.stateManager.changeState('PAUSED');
+        return;
+      }
+    }
+
     // Ammo switching controls
     if (key === '1') {
       this.game.ammoManager.switchType('kinetic');
@@ -167,6 +183,7 @@ export class Player {
 
     // Get current ammo config for visual effects
     const ammoConfig = this.game.ammoManager.getCurrentConfig();
+    const currentAmmo = this.game.ammoManager.currentType;
 
     // Muzzle flash
     this.createMuzzleFlash(ammoConfig);
@@ -182,26 +199,64 @@ export class Player {
       this.game.debug.drawRay(this.camera.position, direction, 100, ammoConfig.color);
     }
 
-    const hits = raycaster.intersectObjects(this.game.enemies.map(e => e.getMesh()));
-    if (hits.length > 0) {
-      const hitEnemy = this.game.enemies.find(e => e.getMesh() === hits[0].object);
-      if (hitEnemy) {
-        console.log('Hit enemy!');
+    let hitEnemy = null;
+    let isWeakSpotHit = false;
+    let closestDistance = Infinity;
+    
+    // FIRST: Check weak spots (for ALL ammo types)
+    this.game.enemies.forEach(enemy => {
+      if (enemy.weakSpot && enemy.weakSpot.worldPosition) {
+        const distance = raycaster.ray.distanceToPoint(enemy.weakSpot.worldPosition);
         
-        // Emit hit event for stats tracking
-        this.game.events.emit('enemy:hit', {
-          enemy: hitEnemy,
-          position: hits[0].point
-        });
-        
-        // Debug hit point
-        if (this.game.debug.enabled) {
-          this.game.debug.drawPoint(hits[0].point, 0x00ff00, 0.3);
+        // If ray passes within weak spot radius
+        if (distance < enemy.weakSpot.radius) {
+          const distanceToEnemy = this.camera.position.distanceTo(enemy.weakSpot.worldPosition);
+          if (distanceToEnemy < closestDistance) {
+            hitEnemy = enemy;
+            isWeakSpotHit = true;
+            closestDistance = distanceToEnemy;
+          }
         }
-        
-        // Use ammo config damage
-        hitEnemy.takeDamage(ammoConfig.damage, ammoConfig.type);
       }
+    });
+    
+    // SECOND: If no weak spot hit, check body hits
+    if (!hitEnemy) {
+      const hits = raycaster.intersectObjects(this.game.enemies.map(e => e.getMesh()));
+      if (hits.length > 0) {
+        hitEnemy = this.game.enemies.find(e => e.getMesh() === hits[0].object);
+        isWeakSpotHit = false;
+      }
+    }
+    
+    // Apply damage
+    if (hitEnemy) {
+      console.log('Hit enemy!' + (isWeakSpotHit ? ' CRITICAL!' : ''));
+      
+      let damage = ammoConfig.damage;
+      
+      // Critical damage for weak spot hits (check if ammo type has multiplier)
+      if (isWeakSpotHit) {
+        const multiplierKey = currentAmmo + 'Multiplier';
+        if (hitEnemy.weakSpot[multiplierKey]) {
+          damage *= hitEnemy.weakSpot[multiplierKey];
+          this.showCriticalHit(hitEnemy);
+        }
+      }
+      
+      // Emit hit event for stats tracking
+      this.game.events.emit('enemy:hit', {
+        enemy: hitEnemy,
+        critical: isWeakSpotHit
+      });
+      
+      // Debug hit point
+      if (this.game.debug.enabled) {
+        this.game.debug.drawPoint(isWeakSpotHit ? hitEnemy.weakSpot.worldPosition : hitEnemy.position, 0x00ff00, 0.3);
+      }
+      
+      // Use ammo config damage
+      hitEnemy.takeDamage(damage, ammoConfig.type, isWeakSpotHit);
     }
 
     // Create bullet tracer line using object pool
@@ -213,6 +268,61 @@ export class Player {
       damage: ammoConfig.damage,
       position: this.camera.position.clone()
     });
+  }
+  
+  showCriticalHit(enemy) {
+    // Screen shake
+    const originalPos = this.camera.position.clone();
+    this.camera.position.x += (Math.random() - 0.5) * 0.15;
+    this.camera.position.y += (Math.random() - 0.5) * 0.15;
+    
+    setTimeout(() => {
+      this.camera.position.copy(originalPos);
+    }, 50);
+    
+    // Critical hit indicator
+    const critDiv = document.createElement('div');
+    critDiv.className = 'critical-hit-indicator';
+    critDiv.textContent = 'CRITICAL!';
+    
+    const screenPos = this.getScreenPosition(enemy.position);
+    critDiv.style.left = screenPos.x + 'px';
+    critDiv.style.top = (screenPos.y - 60) + 'px';
+    
+    document.body.appendChild(critDiv);
+    
+    // Animate and remove
+    let offsetY = 0;
+    let opacity = 1;
+    const interval = setInterval(() => {
+      offsetY -= 3;
+      opacity -= 0.05;
+      critDiv.style.top = (screenPos.y - 60 + offsetY) + 'px';
+      critDiv.style.opacity = opacity;
+      
+      if (opacity <= 0) {
+        critDiv.remove();
+        clearInterval(interval);
+      }
+    }, 30);
+    
+    // Flash weak spot bright
+    if (enemy.weakSpotMesh) {
+      const originalIntensity = enemy.weakSpotMesh.material.emissiveIntensity;
+      enemy.weakSpotMesh.material.emissiveIntensity = 3.0;
+      setTimeout(() => {
+        if (enemy.weakSpotMesh) {
+          enemy.weakSpotMesh.material.emissiveIntensity = originalIntensity;
+        }
+      }, 100);
+    }
+  }
+  
+  getScreenPosition(worldPos) {
+    const vector = worldPos.clone().project(this.camera);
+    const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+    return { x, y };
   }
 
   createMuzzleFlash(ammoConfig) {

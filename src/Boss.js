@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Enemy } from './Enemy.js';
+import { ResourceOrb } from './ResourceOrb.js';
 
 /**
  * Boss Configuration
@@ -14,7 +15,12 @@ const BOSS_CONFIG = {
     speed: 1.5,
     drops: {
       guaranteed: 'thermal_panel_blueprint',
-      currency: 100
+      currency: 100,
+      orbs: [
+        { type: 'metal', amount: 50, count: 3 },
+        { type: 'energy', amount: 50, count: 3 },
+        { type: 'thermal_core', amount: 30, count: 2 }
+      ]
     }
   }
 };
@@ -70,7 +76,7 @@ export class Boss extends Enemy {
     document.body.appendChild(bossHpDiv);
   }
   
-  takeDamage(amount, type = 'kinetic') {
+  takeDamage(amount, type = 'kinetic', isCritical = false) {
     if (this.isDead) return;
     
     // Use boss-specific weaknesses
@@ -80,15 +86,20 @@ export class Boss extends Enemy {
     this.hp -= finalDamage;
     this.hp = Math.max(0, this.hp);
     
-    // Visual feedback
-    const isEffective = weakness >= 1.0;
-    this.showDamageFlash(isEffective);
-    this.showDamageNumber(finalDamage, isEffective);
+    // Visual feedback - call parent class methods from Enemy
+    if (isCritical) {
+      super.flashColor(0xffff00, 0.5);
+      super.showDamageNumber(Math.floor(finalDamage), 0xffff00, true);
+    } else {
+      const isEffective = weakness >= 1.0;
+      super.showDamageFlash(isEffective);
+      super.showDamageNumber(finalDamage, isEffective, false);
+    }
     
     // Update boss health bar
     this.updateBossHealthBar();
     
-    console.log(`Boss HP: ${Math.round(this.hp)}/${this.maxHp} (${type} x${weakness})`);
+    console.log(`Boss HP: ${Math.round(this.hp)}/${this.maxHp} (${type} x${weakness}${isCritical ? ' CRIT' : ''})`);
     
     if (this.hp <= 0) {
       this.die();
@@ -110,6 +121,8 @@ export class Boss extends Enemy {
   
   die() {
     this.isDead = true;
+    console.log(`🎯 Boss defeated: ${this.bossConfig.name}`);
+    console.log('Boss config drops:', this.bossConfig.drops);
     
     // Remove boss health bar
     const bossHpBar = document.getElementById('boss-health-bar');
@@ -117,11 +130,16 @@ export class Boss extends Enemy {
       bossHpBar.remove();
     }
     
-    // Drop guaranteed unlock
-    this.dropUnlock();
+    // Play dramatic death effect
+    this.playBossDeathEffect();
     
-    // Drop currency (resources)
-    this.dropResources();
+    // DROP VICTORY ORBS (The fix!)
+    const orbs = this.createVictoryRewardOrbs();
+    
+    // Drop guaranteed unlock
+    console.log('About to call dropUnlock()...');
+    this.dropUnlock();
+    console.log('dropUnlock() completed');
     
     // Emit boss defeated event
     if (window.game && window.game.events) {
@@ -131,12 +149,9 @@ export class Boss extends Enemy {
       });
     }
     
-    console.log(`Boss defeated: ${this.bossConfig.name}`);
-    
     // Call parent onDeath callback to spawn orbs
     if (this.onDeath) {
-      const orbs = this.createDeathOrbs();
-      this.onDeath(orbs);  // Pass array of orbs, not individual orbs
+      this.onDeath(orbs);
     }
     
     // Remove mesh after brief delay
@@ -145,6 +160,126 @@ export class Boss extends Enemy {
         this.mesh.parent.remove(this.mesh);
       }
     }, 500);
+  }
+  
+  createVictoryRewardOrbs() {
+    console.log('Creating boss victory reward orbs...');
+    const orbs = [];
+    
+    // Get orb drops from config
+    const orbDrops = this.bossConfig.drops.orbs || [];
+    
+    orbDrops.forEach(reward => {
+      for (let i = 0; i < reward.count; i++) {
+        // Spawn orbs in expanding circle around boss
+        const angle = (i / reward.count) * Math.PI * 2 + Math.random() * 0.5;
+        const radius = 3 + Math.random() * 1; // 3-4 unit radius
+        
+        const offset = new THREE.Vector3(
+          Math.cos(angle) * radius,
+          0.5,
+          Math.sin(angle) * radius
+        );
+        
+        const dropPos = this.position.clone().add(offset);
+        
+        const orb = new ResourceOrb(
+          dropPos.x,
+          dropPos.y,
+          dropPos.z,
+          reward.type,
+          reward.amount
+        );
+        
+        orbs.push(orb);
+        console.log(`Created ${reward.type} orb (+${reward.amount})`);
+      }
+    });
+    
+    console.log(`Total victory orbs created: ${orbs.length}`);
+    return orbs;
+  }
+  
+  playBossDeathEffect() {
+    // Dramatic explosion with more particles
+    const scene = this.mesh.parent;
+    if (!scene || !scene.add) return;
+    
+    for (let i = 0; i < 30; i++) {
+      const particle = this.createBossDeathParticle();
+      scene.add(particle);
+      
+      const velocity = new THREE.Vector3(
+        (Math.random() - 0.5) * 8,
+        Math.random() * 6,
+        (Math.random() - 0.5) * 8
+      );
+      
+      this.animateBossParticle(particle, velocity, scene);
+    }
+    
+    // Screen shake
+    this.screenShake(0.5, 500);
+  }
+  
+  createBossDeathParticle() {
+    const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+    const material = new THREE.MeshStandardMaterial({ 
+      color: 0xff0000,
+      emissive: 0xff6600,
+      emissiveIntensity: 1.0
+    });
+    const particle = new THREE.Mesh(geometry, material);
+    particle.position.copy(this.position);
+    return particle;
+  }
+  
+  animateBossParticle(particle, velocity, scene) {
+    let life = 1.0;
+    const gravity = -9.8;
+    
+    const interval = setInterval(() => {
+      velocity.y += gravity * 0.016;
+      particle.position.add(velocity.clone().multiplyScalar(0.016));
+      
+      life -= 0.03;
+      particle.material.emissiveIntensity = life;
+      particle.material.opacity = life;
+      particle.material.transparent = true;
+      
+      if (life <= 0) {
+        scene.remove(particle);
+        particle.geometry.dispose();
+        particle.material.dispose();
+        clearInterval(interval);
+      }
+    }, 16);
+  }
+  
+  screenShake(intensity, duration) {
+    if (!window.game || !window.game.camera) return;
+    
+    const camera = window.game.camera;
+    const originalPos = camera.position.clone();
+    const startTime = Date.now();
+    
+    const shakeInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = elapsed / duration;
+      
+      if (progress >= 1.0) {
+        camera.position.copy(originalPos);
+        clearInterval(shakeInterval);
+        return;
+      }
+      
+      // Decreasing shake over time
+      const currentIntensity = intensity * (1 - progress);
+      
+      camera.position.x = originalPos.x + (Math.random() - 0.5) * currentIntensity;
+      camera.position.y = originalPos.y + (Math.random() - 0.5) * currentIntensity;
+      camera.position.z = originalPos.z + (Math.random() - 0.5) * currentIntensity;
+    }, 16);
   }
   
   dropUnlock() {
@@ -167,8 +302,8 @@ export class Boss extends Enemy {
     const notification = document.createElement('div');
     notification.className = 'unlock-notification';
     notification.innerHTML = `
-      <h3>NEW BLUEPRINT ACQUIRED</h3>
-      <p>${unlockData.name}</p>
+      <h2>🔓 NEW BLUEPRINT ACQUIRED</h2>
+      <h3>${unlockData.name}</h3>
       <p class="unlock-desc">${unlockData.description}</p>
     `;
     document.body.appendChild(notification);
@@ -178,36 +313,6 @@ export class Boss extends Enemy {
       notification.style.opacity = '0';
       setTimeout(() => notification.remove(), 500);
     }, 4500);
-  }
-  
-  dropResources() {
-    // Boss drops extra resources
-    const currency = this.bossConfig.drops.currency;
-    console.log(`Boss dropped ${currency} resources`);
-  }
-  
-  createDeathOrbs() {
-    // Create orbs from config (like regular enemies)
-    const orbs = [];
-    
-    // Drop multiple orbs for boss
-    const { ResourceOrb } = require('../ResourceOrb.js');
-    
-    for (let i = 0; i < 5; i++) {
-      const angle = (i / 5) * Math.PI * 2;
-      const distance = 2;
-      
-      const orb = new ResourceOrb(
-        this.mesh.position.x + Math.cos(angle) * distance,
-        this.mesh.position.y,
-        this.mesh.position.z + Math.sin(angle) * distance,
-        'metal',
-        20
-      );
-      orbs.push(orb);
-    }
-    
-    return orbs;
   }
   
   update(timeScale = 1.0) {

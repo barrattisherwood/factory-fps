@@ -314,8 +314,8 @@ export class Game {
   }
 
   // Enemy spawning and management
-  spawnEnemy(type, position) {
-    const enemy = new Enemy(position.x, position.y, position.z, type);
+  spawnEnemy(type, position, levelNumber = 1) {
+    const enemy = new Enemy(position.x, position.y, position.z, type, levelNumber);
     
     // Set death callback
     enemy.onDeath = (orbs) => {
@@ -412,6 +412,10 @@ export class Game {
           const ammoAmount = orb.ammoAmount || 10;
           
           console.log(`Collecting orb: ${orb.resourceType} → ${ammoType} (+${ammoAmount})`);
+          
+          // Show pickup notification
+          this.showPickupNotification(orb.resourceType, ammoAmount, orb.config);
+          
           // Route collection through ResourceManager so factory receives it
           this.resourceManager.collectResource(orb.resourceType, ammoAmount);
 
@@ -422,8 +426,10 @@ export class Game {
     }
     
     // Phase 9: Check if level complete (all enemies dead)
-    if (this.runManager.currentRun && this.stateManager.currentState === 'PLAYING') {
-      if (this.enemies.length === 0) {
+    // Only check for levels 1-3, not for boss level
+    if (this.runManager.currentRun && this.stateManager.isPlaying()) {
+      const currentLevel = this.runManager.currentRun.currentLevel;
+      if (currentLevel <= 3 && this.enemies.length === 0) {
         this.runManager.onLevelComplete();
       }
     }
@@ -506,6 +512,48 @@ export class Game {
     this.runManager.currentRun = null;
     
     this.stateManager.changeState('HUB');
+  }
+  
+  showPickupNotification(resourceType, amount, config) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'pickup-notification';
+    
+    // Get resource color from config
+    const color = config ? `#${config.color.toString(16).padStart(6, '0')}` : '#ffffff';
+    
+    // Format resource name (capitalize first letter)
+    const resourceName = resourceType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    notification.innerHTML = `
+      <span class="pickup-amount" style="color: ${color}">+${amount}</span>
+      <span class="pickup-type">${resourceName}</span>
+    `;
+    
+    // Add to container or create one
+    let container = document.getElementById('pickup-notifications');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'pickup-notifications';
+      document.body.appendChild(container);
+    }
+    
+    container.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+      notification.classList.add('show');
+    }, 10);
+    
+    // Remove after animation
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => {
+        if (notification.parentElement) {
+          notification.remove();
+        }
+      }, 300);
+    }, 2000);
   }
   
   restartRun() {

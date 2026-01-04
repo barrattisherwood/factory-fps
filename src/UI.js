@@ -238,9 +238,9 @@ export class UI {
       `;
       hint.style.cssText = `
         position: fixed;
-        top: 50%;
+        bottom: 100px;
         left: 50%;
-        transform: translate(-50%, -50%);
+        transform: translateX(-50%);
         background: rgba(255, 200, 0, 0.95);
         color: #000;
         padding: 15px 30px;

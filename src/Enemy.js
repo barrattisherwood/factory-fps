@@ -3,10 +3,11 @@ import { ResourceOrb } from './ResourceOrb.js';
 import { getEnemyConfig } from './config/enemies.js';
 
 export class Enemy {
-  constructor(x, y, z, type = 'standard') {
+  constructor(x, y, z, type = 'standard', levelNumber = 1) {
     this.position = new THREE.Vector3(x, y, z);
     this.type = type;
     this.config = getEnemyConfig(type);
+    this.levelNumber = levelNumber;
     
     this.hp = this.config.hp;
     this.maxHp = this.config.hp;
@@ -22,8 +23,37 @@ export class Enemy {
     this.shieldHp = this.hasShield ? 100 : 0; // Shield takes 100 damage to break
     this.maxShieldHp = this.shieldHp;
     this.shieldBroken = false;
+    
+    // Movement properties
+    this.velocity = new THREE.Vector3();
+    this.speed = this.config.speed || 1.5;
+    this.chaseRange = 30; // Start chasing when player within 30 units
+    this.attackRange = 2.5; // Deal damage when within 2.5 units
+    this.isChasing = false;
+    this.lastAttackTime = 0;
+    
+    // Setup AI behavior based on level
+    this.setupAIBehavior();
 
     this.createMesh();
+  }
+  
+  setupAIBehavior() {
+    // Level 1: Tutorial mode (stationary)
+    if (this.levelNumber === 1) {
+      this.aiMode = 'stationary';
+      this.speed = 0; // Don't move
+    }
+    // Level 2: Gentle introduction to movement
+    else if (this.levelNumber === 2) {
+      this.aiMode = 'slow_chase';
+      this.speed = this.config.speed * 0.5; // 50% speed
+    }
+    // Level 3+: Full aggression
+    else {
+      this.aiMode = 'full_chase';
+      this.speed = this.config.speed; // Normal speed
+    }
   }
 
   createMesh() {
@@ -55,6 +85,51 @@ export class Enemy {
     if (this.config.hasShield) {
       this.createShieldVisual();
     }
+    
+    // Add weak spot visual if configured
+    if (this.config.weakSpot) {
+      this.createWeakSpotVisual(this.config.weakSpot);
+    }
+  }
+  
+  createWeakSpotVisual(spotConfig) {
+    console.log('Creating weak spot for', this.config.name);
+    
+    // Use MeshBasicMaterial for guaranteed visibility (no lighting required)
+    const geometry = new THREE.SphereGeometry(spotConfig.radius * 1.5, 16, 16);
+    const material = new THREE.MeshBasicMaterial({
+      color: spotConfig.visualColor,
+      transparent: false,
+      side: THREE.DoubleSide
+    });
+    
+    this.weakSpotMesh = new THREE.Mesh(geometry, material);
+    this.weakSpotMesh.position.set(
+      spotConfig.position.x,
+      spotConfig.position.y,
+      spotConfig.position.z
+    );
+    
+    // Disable raycasting on visual mesh (we do manual sphere checks)
+    this.weakSpotMesh.raycast = () => {};
+    
+    // Pulsing animation data
+    this.weakSpotMesh.userData.pulseTime = Math.random() * Math.PI * 2;
+    this.weakSpotMesh.userData.pulseSpeed = 3.0;
+    this.weakSpotMesh.userData.baseColor = new THREE.Color(spotConfig.visualColor);
+    
+    // Add to enemy mesh
+    this.mesh.add(this.weakSpotMesh);
+    
+    // Verify it was added
+    console.log('Weak spot added:', this.weakSpotMesh);
+    console.log('Enemy mesh children count:', this.mesh.children.length);
+    
+    // Store for hit detection
+    this.weakSpot = {
+      ...spotConfig,
+      worldPosition: new THREE.Vector3()
+    };
   }
 
   createShieldVisual() {
@@ -93,7 +168,7 @@ export class Enemy {
     this.mesh.add(this.shieldWireframe);
   }
 
-  takeDamage(amount, damageType = 'kinetic') {
+  takeDamage(amount, damageType = 'kinetic', isCritical = false) {
     if (this.isDead) return;
 
     // If shield is active, handle shield damage
@@ -147,11 +222,17 @@ export class Enemy {
     this.hp -= finalDamage;
     
     // Visual feedback based on effectiveness
-    const isEffective = weakness >= 1.0;
-    this.showDamageFlash(isEffective);
-    this.showDamageNumber(finalDamage, isEffective);
+    if (isCritical) {
+      // CRITICAL HIT - Yellow/gold flash
+      this.flashColor(0xffff00, 0.5);
+      this.showDamageNumber(Math.floor(finalDamage), 0xffff00, true);
+    } else {
+      const isEffective = weakness >= 1.0;
+      this.showDamageFlash(isEffective);
+      this.showDamageNumber(finalDamage, isEffective);
+    }
 
-    console.log(`Enemy [${this.config.name}] HP: ${Math.round(this.hp)}/${this.maxHp} (${damageType} x${weakness})`);
+    console.log(`Enemy [${this.config.name}] HP: ${Math.round(this.hp)}/${this.maxHp} (${damageType} x${weakness}${isCritical ? ' CRIT' : ''})`);
 
     if (this.hp <= 0) {
       this.die();
@@ -188,14 +269,25 @@ export class Enemy {
   showDamageFlash(isEffective) {
     // Red flash for effective, grey for ineffective
     const flashColor = isEffective ? 0xff0000 : 0x666666;
-    
-    this.mesh.material.color.setHex(flashColor);
+    this.flashColor(flashColor, 0.3);
+  }
+  
+  flashColor(color, duration) {
+    this.mesh.material.color.setHex(color);
     this.flashTimer = 0;
-    this.flashDuration = 200;
+    this.flashDuration = duration * 1000;
     this.targetColor = this.originalColor.clone();
   }
 
-  showDamageNumber(damage, isEffective) {
+  showDamageNumber(damage, colorOrEffective, isCritical = false) {
+    // Handle both old (boolean) and new (hex color) signatures
+    let color;
+    if (typeof colorOrEffective === 'boolean') {
+      color = colorOrEffective ? 'white' : '#888888';
+    } else {
+      color = `#${colorOrEffective.toString(16).padStart(6, '0')}`;
+    }
+    
     // Create floating damage number above enemy
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -204,9 +296,16 @@ export class Enemy {
 
     // Draw damage text
     const damageText = Math.round(damage).toString();
-    ctx.font = 'bold 60px Arial';
+    ctx.font = isCritical ? 'bold 80px Arial' : 'bold 60px Arial';
     ctx.textAlign = 'center';
-    ctx.fillStyle = isEffective ? 'white' : '#888888';
+    ctx.fillStyle = color;
+    
+    if (isCritical) {
+      // Add glow effect for crits
+      ctx.shadowColor = '#ffff00';
+      ctx.shadowBlur = 20;
+    }
+    
     ctx.fillText(damageText, 128, 80);
 
     // Create texture and material
@@ -218,7 +317,7 @@ export class Enemy {
     });
 
     // Create sprite
-    const geometry = new THREE.PlaneGeometry(2, 1);
+    const geometry = new THREE.PlaneGeometry(isCritical ? 3 : 2, isCritical ? 1.5 : 1);
     const damageNumberMesh = new THREE.Mesh(geometry, material);
     damageNumberMesh.position.copy(this.mesh.position);
     damageNumberMesh.position.y += 2;
@@ -230,10 +329,16 @@ export class Enemy {
 
       // Animate floating text
       let floatProgress = 0;
+      const floatSpeed = isCritical ? 0.04 : 0.05;
       const floatInterval = setInterval(() => {
-        floatProgress += 0.05;
-        damageNumberMesh.position.y += 0.1;
+        floatProgress += floatSpeed;
+        damageNumberMesh.position.y += isCritical ? 0.15 : 0.1;
         material.opacity = 1 - floatProgress;
+        
+        // Make it face the camera
+        if (window.game && window.game.camera) {
+          damageNumberMesh.lookAt(window.game.camera.position);
+        }
 
         if (floatProgress >= 1) {
           clearInterval(floatInterval);
@@ -249,73 +354,101 @@ export class Enemy {
   die() {
     this.isDead = true;
     console.log(`Enemy [${this.config.name}] defeated!`);
-    const orbs = this.createExplosion();
+    
+    // Play death animation
+    this.playDeathEffect();
+    
+    // Spawn ALL configured resource drops
+    const orbs = [];
+    if (this.config.drops && Array.isArray(this.config.drops)) {
+      this.config.drops.forEach(dropConfig => {
+        // Roll for drop chance
+        if (Math.random() <= dropConfig.chance) {
+          // Spawn with slight position offset so they don't stack
+          const offset = new THREE.Vector3(
+            (Math.random() - 0.5) * 1.5,
+            0.5,
+            (Math.random() - 0.5) * 1.5
+          );
+          
+          const dropPos = this.position.clone().add(offset);
+          
+          const orb = new ResourceOrb(
+            dropPos.x,
+            dropPos.y,
+            dropPos.z,
+            dropConfig.type,
+            dropConfig.amount
+          );
+          
+          orbs.push(orb);
+        }
+      });
+    }
     
     // Trigger death callback with orbs array
     if (this.onDeath) {
       this.onDeath(orbs);
     }
   }
-
-  createExplosion() {
-    // Particle explosion effect
-    const particleCount = 20;
-    for (let i = 0; i < particleCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 0.2 + Math.random() * 0.3;
-      const x = Math.cos(angle) * speed;
-      const y = (Math.random() - 0.5) * speed;
-      const z = Math.sin(angle) * speed;
-
-      const particleGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-      const particleMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff6600,
-        emissive: 0xff3300,
-        emissiveIntensity: 0.8,
-      });
-      const particle = new THREE.Mesh(particleGeometry, particleMaterial);
-      particle.position.copy(this.mesh.position);
-      particle.velocity = new THREE.Vector3(x, y, z);
-      particle.gravity = 0.01;
-
-      // Update particle
-      const updateParticle = () => {
-        particle.position.add(particle.velocity);
-        particle.velocity.y -= particle.gravity;
-        particle.material.emissiveIntensity -= 0.02;
-
-        if (particle.material.emissiveIntensity > 0) {
-          setTimeout(updateParticle, 16);
-        } else {
-          // This is managed by the game, would need to track particles
-        }
-      };
-      updateParticle();
+  
+  playDeathEffect() {
+    // Explosion particles
+    const scene = this.mesh.parent.parent || this.mesh.parent;
+    if (!scene || !scene.add) return;
+    
+    for (let i = 0; i < 10; i++) {
+      const particle = this.createDeathParticle();
+      scene.add(particle);
+      
+      // Animate particle
+      const velocity = new THREE.Vector3(
+        (Math.random() - 0.5) * 5,
+        Math.random() * 3,
+        (Math.random() - 0.5) * 5
+      );
+      
+      this.animateParticle(particle, velocity, scene);
     }
-
-    // Spawn resource orbs based on config drops
-    const orbs = [];
-    this.config.drops.forEach(drop => {
-      // Roll for drop chance
-      if (Math.random() <= drop.chance) {
-        const orb = new ResourceOrb(
-          this.mesh.position.x,
-          this.mesh.position.y,
-          this.mesh.position.z,
-          drop.type,
-          drop.amount
-        );
-        orbs.push(orb);
-      }
+  }
+  
+  createDeathParticle() {
+    const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    const material = new THREE.MeshStandardMaterial({ 
+      color: this.config.color || 0x888888,
+      emissive: 0xff6600,
+      emissiveIntensity: 0.5
     });
-
-    return orbs;
+    const particle = new THREE.Mesh(geometry, material);
+    particle.position.copy(this.position);
+    return particle;
+  }
+  
+  animateParticle(particle, velocity, scene) {
+    let life = 1.0;
+    const gravity = -9.8;
+    
+    const interval = setInterval(() => {
+      velocity.y += gravity * 0.016;
+      particle.position.add(velocity.clone().multiplyScalar(0.016));
+      
+      life -= 0.05;
+      particle.material.opacity = life;
+      particle.material.transparent = true;
+      
+      if (life <= 0) {
+        scene.remove(particle);
+        particle.geometry.dispose();
+        particle.material.dispose();
+        clearInterval(interval);
+      }
+    }, 16);
   }
 
   getMesh() {
     return this.mesh;
   }
-
+  
   update(timeScale = 1.0) {
     // Handle damage flash
     if (this.flashTimer < this.flashDuration) {
@@ -339,23 +472,116 @@ export class Enemy {
       this.shield.rotation.y += 0.01 * timeScale;
       this.shield.rotation.x = Math.sin(Date.now() * 0.001 * timeScale) * 0.1;
     }
+    
+    // Animate weak spot pulse
+    if (this.weakSpotMesh) {
+      this.weakSpotMesh.userData.pulseTime += 0.016 * timeScale * this.weakSpotMesh.userData.pulseSpeed;
+      const pulse = Math.sin(this.weakSpotMesh.userData.pulseTime) * 0.3 + 0.7; // 0.4 to 1.0
+      
+      // Pulse the color brightness for MeshBasicMaterial
+      const baseColor = this.weakSpotMesh.userData.baseColor;
+      this.weakSpotMesh.material.color.setRGB(
+        baseColor.r * pulse,
+        baseColor.g * pulse,
+        baseColor.b * pulse
+      );
+      
+      // Update world position for raycasting
+      this.weakSpotMesh.getWorldPosition(this.weakSpot.worldPosition);
+    }
+    
+    // AI behavior
+    this.updateAI(timeScale);
+    
+    // Apply movement
+    this.mesh.position.add(this.velocity.clone().multiplyScalar(0.016 * timeScale));
+    this.position.copy(this.mesh.position);
+  }
+  
+  updateAI(timeScale) {
+    // Need access to game/player - will be passed or accessed globally
+    if (!window.game || !window.game.player) return;
+    
+    const playerPos = window.game.player.camera.getWorldPosition(new THREE.Vector3());
+    const distanceToPlayer = this.position.distanceTo(playerPos);
+    
+    // Level 1: Tutorial mode - no movement, just rotate to face player
+    if (this.aiMode === 'stationary') {
+      this.velocity.set(0, 0, 0);
+      // Still face player so they know enemies are "active"
+      this.mesh.lookAt(new THREE.Vector3(playerPos.x, this.position.y, playerPos.z));
+      return;
+    }
+    
+    // Check if in chase range
+    if (distanceToPlayer < this.chaseRange) {
+      this.isChasing = true;
+    }
+    
+    if (this.isChasing) {
+      // Move toward player
+      const direction = this.getChaseDirection(playerPos);
+      
+      // Simple separation from other enemies
+      this.avoidOtherEnemies(direction);
+      
+      // Set velocity
+      this.velocity.copy(direction.multiplyScalar(this.speed));
+      
+      // Rotate to face player
+      this.mesh.lookAt(new THREE.Vector3(playerPos.x, this.position.y, playerPos.z));
+      
+      // Check if close enough to deal damage
+      if (distanceToPlayer < this.attackRange) {
+        this.attackPlayer();
+      }
+    } else {
+      // Idle - slow down
+      this.velocity.multiplyScalar(0.9);
+    }
+  }
+  
+  getChaseDirection(playerPos) {
+    const direction = playerPos.clone().sub(this.position).normalize();
+    direction.y = 0; // Stay on ground
+    return direction;
+  }
+  
+  avoidOtherEnemies(direction) {
+    // Check nearby enemies
+    if (!window.game || !window.game.enemies) return;
+    
+    window.game.enemies.forEach(other => {
+      if (other === this) return;
+      
+      const distance = this.position.distanceTo(other.position);
+      if (distance < 2.0) { // Too close
+        // Push away from other enemy
+        const away = this.position.clone().sub(other.position).normalize();
+        direction.add(away.multiplyScalar(0.3));
+      }
+    });
+    
+    direction.normalize();
+  }
+  
+  attackPlayer() {
+    // Deal contact damage (rate-limited to once per second)
+    const now = Date.now();
+    if (!this.lastAttackTime || now - this.lastAttackTime > 1000) {
+      if (window.game && window.game.player) {
+        window.game.player.takeDamage(this.config.damage || 10);
+        this.lastAttackTime = now;
+        
+        // Visual feedback - flash enemy
+        this.flashColor(0xff0000, 0.3);
+      }
+    }
   }
   
   checkPlayerCollision(player) {
-    if (!player || this.isDead) return;
-    
-    // Get player position from camera
-    const playerPos = player.camera.getWorldPosition(new THREE.Vector3());
-    const distanceToPlayer = this.position.distanceTo(playerPos);
-    
-    // Check collision (2 unit radius)
-    if (distanceToPlayer < 2.0) {
-      player.takeDamage(10);
-      
-      // Push enemy back to prevent rapid damage
-      const pushDir = this.position.clone().sub(playerPos).normalize();
-      this.position.add(pushDir.multiplyScalar(0.5));
-      this.mesh.position.copy(this.position);
-    }
+    // Now handled by attackPlayer() in updateAI
+    // Keep this method for backwards compatibility but make it a no-op
+    // The AI system handles collision damage now
   }
 }

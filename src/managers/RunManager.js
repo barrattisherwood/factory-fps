@@ -54,6 +54,14 @@ export class RunManager {
   
   startNewRun() {
     this.runNumber++;
+    this.levelCompleteShown = false; // Initialize flag
+    
+    // Remove any lingering level complete overlays
+    const existingOverlay = document.getElementById('level-complete-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+    
     this.currentRun = {
       runId: this.runNumber,
       startTime: Date.now(),
@@ -73,6 +81,9 @@ export class RunManager {
   }
   
   startNextLevel() {
+    // Reset level complete flag for new level
+    this.levelCompleteShown = false;
+    
     this.currentRun.currentLevel++;
     this.currentLevel = this.currentRun.currentLevel;
     
@@ -97,6 +108,12 @@ export class RunManager {
     this.game.clearEnemies();
     this.game.clearOrbs();
     
+    // Clean up any lingering boss HP bar
+    const bossHpBar = document.getElementById('boss-health-bar');
+    if (bossHpBar) {
+      bossHpBar.remove();
+    }
+    
     // Spawn enemies for this level
     const totalEnemies = (config.enemies.standard || 0) + 
                         (config.enemies.shielded || 0) + 
@@ -105,23 +122,63 @@ export class RunManager {
     const spawnPoints = this.getSpawnPoints(totalEnemies);
     let spawnIndex = 0;
     
+    const currentLevel = this.currentRun.currentLevel;
+    
     // Spawn standard enemies
     for (let i = 0; i < (config.enemies.standard || 0); i++) {
-      this.game.spawnEnemy('standard', spawnPoints[spawnIndex++]);
+      this.game.spawnEnemy('standard', spawnPoints[spawnIndex++], currentLevel);
     }
     
     // Spawn shielded enemies
     for (let i = 0; i < (config.enemies.shielded || 0); i++) {
-      this.game.spawnEnemy('shielded', spawnPoints[spawnIndex++]);
+      this.game.spawnEnemy('shielded', spawnPoints[spawnIndex++], currentLevel);
     }
     
     // Spawn heavy enemies (if unlocked)
     for (let i = 0; i < (config.enemies.heavy || 0); i++) {
-      this.game.spawnEnemy('heavy', spawnPoints[spawnIndex++]);
+      this.game.spawnEnemy('heavy', spawnPoints[spawnIndex++], currentLevel);
     }
     
     this.enemiesRemaining = totalEnemies;
     console.log(`Level ${this.currentRun.currentLevel} loaded: ${totalEnemies} enemies`);
+    
+    // Show tutorial hints for Level 1
+    if (this.currentRun.currentLevel === 1) {
+      this.showTutorialHints();
+    }
+  }
+  
+  showTutorialHints() {
+    const hints = [
+      { text: "TUTORIAL: Enemies won't chase you yet - take your time!", delay: 1000, duration: 5000 },
+      { text: "Aim for the glowing weak spots for critical damage!", delay: 7000, duration: 4000 },
+      { text: "Press 1 and 2 to switch ammo types", delay: 12000, duration: 4000 },
+      { text: "Collect orbs to gather resources", delay: 17000, duration: 4000 },
+      { text: "Press TAB to open factory and craft ammo", delay: 22000, duration: 4000 }
+    ];
+    
+    hints.forEach(hint => {
+      setTimeout(() => {
+        this.showHint(hint.text, hint.duration);
+      }, hint.delay);
+    });
+  }
+  
+  showHint(text, duration = 3000) {
+    const existing = document.getElementById('tutorial-hint');
+    if (existing) existing.remove();
+    
+    const hint = document.createElement('div');
+    hint.id = 'tutorial-hint';
+    hint.className = 'tutorial-hint';
+    hint.textContent = text;
+    
+    document.body.appendChild(hint);
+    
+    setTimeout(() => {
+      hint.style.opacity = '0';
+      setTimeout(() => hint.remove(), 500);
+    }, duration);
   }
   
   spawnCurrentLevel() {
@@ -162,9 +219,107 @@ export class RunManager {
   }
   
   onLevelComplete() {
+    // Prevent duplicate calls
+    if (this.levelCompleteShown) {
+      return;
+    }
+    this.levelCompleteShown = true;
+    
+    console.log(`Level ${this.currentRun.currentLevel} complete!`);
+    
+    // Don't pause game - let player collect remaining orbs
+    // Show level complete overlay
+    this.showLevelCompleteScreen();
+  }
+  
+  showLevelCompleteScreen() {
+    // Remove any existing overlay first
+    const existingOverlay = document.getElementById('level-complete-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+    
     const config = LEVEL_CONFIG[this.currentRun.currentLevel];
+    const overlay = document.createElement('div');
+    overlay.id = 'level-complete-overlay';
+    overlay.className = 'level-transition-overlay';
+    
+    const remainingOrbs = this.game.orbs.length;
+    
+    overlay.innerHTML = `
+      <div class="level-complete-container">
+        <h2>✓ LEVEL ${this.currentRun.currentLevel} CLEARED</h2>
+        <div class="level-stats">
+          <p style="color: #00ffcc; font-size: 18px; margin-bottom: 15px;">Orbs Remaining: ${remainingOrbs}</p>
+          <p class="proceed-hint">⌨️ PRESS [SPACE] TO ${remainingOrbs > 0 ? 'COLLECT & CONTINUE' : 'CONTINUE'} ⌨️</p>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    console.log('Level complete screen displayed - Press SPACE to continue');
+    
+    // Player can still move and collect orbs during this screen
+    
+    // Store handler reference so we can remove it later
+    const spaceHandler = (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        console.log('Space pressed - proceeding to next level');
+        this.proceedToNextLevel();
+        overlay.remove();
+        window.removeEventListener('keydown', spaceHandler);
+      }
+    };
+    
+    // Store the handler so we can clean it up
+    this.currentSpaceHandler = spaceHandler;
+    window.addEventListener('keydown', spaceHandler);
+  }
+  
+  proceedToNextLevel() {
+    console.log('proceedToNextLevel called');
+    
+    // Remove any existing space handlers to prevent conflicts
+    if (this.currentSpaceHandler) {
+      window.removeEventListener('keydown', this.currentSpaceHandler);
+      this.currentSpaceHandler = null;
+    }
+    
+    // Remove any existing overlay
+    const existingOverlay = document.getElementById('level-complete-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+    
+    // Auto-collect any remaining orbs
+    const collected = { metal: 0, energy: 0, thermal_core: 0 };
+    
+    // Collect all remaining orbs
+    this.game.orbs.forEach(orb => {
+      const ammoType = orb.ammoType || 'kinetic';
+      const ammoAmount = orb.ammoAmount || 10;
+      
+      this.game.resourceManager.collectResource(orb.resourceType, ammoAmount);
+      collected[orb.resourceType] = (collected[orb.resourceType] || 0) + ammoAmount;
+      
+      // Remove orb from scene
+      if (orb.getMesh() && orb.getMesh().parent) {
+        orb.getMesh().parent.remove(orb.getMesh());
+      }
+    });
+    
+    // Clear orbs array
+    this.game.orbs = [];
+    
+    // Show what was collected if anything
+    if (Object.values(collected).some(v => v > 0)) {
+      console.log('Auto-collected:', collected);
+    }
     
     // Award completion rewards
+    const config = LEVEL_CONFIG[this.currentRun.currentLevel];
     this.game.resourceManager.add('metal', config.completionReward.metal);
     this.game.resourceManager.add('energy', config.completionReward.energy);
     
@@ -176,7 +331,18 @@ export class RunManager {
       rewards: config.completionReward
     });
     
-    console.log(`Level ${this.currentRun.currentLevel} complete!`);
+    console.log('Transitioning to next level...');
+    
+    // Check if next level is boss fight
+    const nextLevel = this.currentRun.currentLevel + 1;
+    if (nextLevel > 3) {
+      // Go directly to boss fight without intermediate transition
+      this.game.stateManager.changeState('PLAYING');
+      setTimeout(() => {
+        this.startNextLevel();
+      }, 100);
+      return;
+    }
     
     // Transition to next level
     this.game.stateManager.changeState('LEVEL_TRANSITION');
@@ -213,6 +379,18 @@ export class RunManager {
   }
   
   startBossFight() {
+    // Remove any lingering level complete overlays
+    const existingOverlay = document.getElementById('level-complete-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+    
+    // Clean up space handler
+    if (this.currentSpaceHandler) {
+      window.removeEventListener('keydown', this.currentSpaceHandler);
+      this.currentSpaceHandler = null;
+    }
+    
     this.game.events.emit('boss:starting');
     console.log('Starting boss fight!');
     this.game.loadBossFight();
