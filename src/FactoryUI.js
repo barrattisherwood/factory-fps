@@ -30,7 +30,7 @@ export class FactoryUI {
 
   bindKeys() {
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Tab' && this.game.stateManager && this.game.stateManager.currentState === 'PLAYING') {
+      if (e.key === 'Tab' && this.game.stateManager && this.game.stateManager.isPlaying()) {
         e.preventDefault();
         this.toggle();
       } else if (e.key === 'Escape') {
@@ -352,9 +352,8 @@ export class FactoryUI {
       if (this.game.setTimeScale) {
         this.game.setTimeScale(1.0); // Resume time
       }
-      // Pointer will re-lock on next click automatically
-      // Don't force it here to avoid issues
-      if (false && this.game.player && this.game.player.controls) {
+      // Re-lock pointer when closing factory UI
+      if (this.game.player && this.game.player.controls) {
         this.game.player.controls.lock();
       }
     }
@@ -369,21 +368,21 @@ export class FactoryUI {
     const available = this.resourceManager.get(resourceType);
 
     if (available === 0) {
-      this.showMessage('No resources available', 'warning');
+      this.game.notificationManager.showWarning('No resources available');
       return;
     }
 
     const success = this.resourceManager.convertAll(resourceType);
 
     if (success) {
-      this.showMessage(`Converted ${available} ${resourceType} → ${available} ${ammoType}`, 'success');
+      this.game.notificationManager.showSuccess(`Converted ${available} ${resourceType} → ${available} ${ammoType}`);
       // Play conversion sound
       if (this.game.soundManager && this.game.soundManager.playConversion) {
         this.game.soundManager.playConversion();
       }
       this.updateDisplay();
     } else {
-      this.showMessage('Conversion failed', 'error');
+      this.game.notificationManager.showError('Conversion failed');
     }
   }
 

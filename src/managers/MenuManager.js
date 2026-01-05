@@ -96,10 +96,9 @@ export class MenuManager {
     // ESC key for pause
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.game.stateManager) {
-        const state = this.game.stateManager.currentState;
-        if (state === 'PLAYING' || state === 'BOSS_FIGHT') {
+        if (this.game.stateManager.isPlaying()) {
           this.game.pauseGame();
-        } else if (state === 'PAUSED') {
+        } else if (this.game.stateManager.isPaused()) {
           this.game.resumeGame();
         }
       }

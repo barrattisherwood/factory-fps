@@ -233,6 +233,16 @@ export class Player {
     if (hitEnemy) {
       console.log('Hit enemy!' + (isWeakSpotHit ? ' CRITICAL!' : ''));
       
+      // Check for shield tutorial trigger (kinetic hitting shielded enemy)
+      if (!this.game.tutorialState.shownShieldTutorial && 
+          currentAmmo === 'kinetic' && 
+          hitEnemy.hasShield && 
+          hitEnemy.config && 
+          hitEnemy.config.name === 'Shielded Robot') {
+        this.game.tutorialState.shownShieldTutorial = true;
+        this.showShieldTutorial();
+      }
+      
       let damage = ammoConfig.damage;
       
       // Critical damage for weak spot hits (check if ammo type has multiplier)
@@ -463,6 +473,17 @@ export class Player {
     }
   }
   
+  showShieldTutorial() {
+    // Show notification instead of blocking modal
+    if (this.game.notificationManager) {
+      this.game.notificationManager.show(
+        '⚡ SHIELD DETECTED! Kinetic rounds are INEFFECTIVE against shields. Press [2] for ENERGY AMMO (4X damage to shields)!',
+        'warning',
+        6000
+      );
+    }
+  }
+  
   die() {
     console.log('Player died!');
     this.game.events.emit('player:died');
@@ -480,6 +501,28 @@ export class Player {
   resetHealth() {
     this.currentHealth = this.maxHealth;
     this.isInvulnerable = false;
+  }
+
+  resetPosition() {
+    // PointerLockControls manages both position and rotation through its object
+    if (this.controls && this.controls.getObject) {
+      const controlsObject = this.controls.getObject();
+      
+      // Set position
+      controlsObject.position.set(0, 1.7, 0);
+      
+      // Reset rotation through controls' internal Euler
+      // The controls.euler property controls the camera's look direction
+      this.controls.euler.x = 0; // Pitch (up/down) - level
+      this.controls.euler.y = Math.PI; // Yaw (left/right) - face 180 degrees
+      this.controls.euler.z = 0; // Roll - no tilt
+    }
+    
+    // Also set camera directly as fallback
+    this.camera.position.set(0, 1.7, 0);
+    
+    // Reset velocity
+    this.velocity.set(0, 0, 0);
   }
   
   getHealthPercent() {

@@ -106,6 +106,11 @@ export class AmmoManager {
     const actualAdded = this.ammo[type] - before;
 
     if (actualAdded > 0) {
+      // Auto-unlock thermal ammo when first obtained
+      if (type === 'thermal' && !this.isUnlocked('thermal')) {
+        this.unlockAmmoType('thermal');
+      }
+      
       this.eventBus.emit('ammo:changed', {
         type,
         amount: this.ammo[type],

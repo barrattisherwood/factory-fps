@@ -8,11 +8,16 @@ import { ResourceOrb } from './ResourceOrb.js';
 const BOSS_CONFIG = {
   fluxWarden: {
     name: 'FLUX WARDEN',
-    hp: 500,
-    maxHp: 500,
+    hp: 800,
+    maxHp: 800,
     weaknesses: { kinetic: 1.0, flux: 0.5, thermal: 0.8 },
     contactDamage: 20,
     speed: 1.5,
+    weakSpot: {
+      kineticMultiplier: 1.5,  // Reduced from 3.0x to 1.5x
+      fluxMultiplier: 1.3,     // Reduced from 2.0x to 1.3x
+      thermalMultiplier: 2.0   // Thermal gets 2x on weak spots
+    },
     drops: {
       guaranteed: 'thermal_panel_blueprint',
       currency: 100,
@@ -44,6 +49,13 @@ export class Boss extends Enemy {
     this.maxHp = config.maxHp;
     this.isBoss = true;
     
+    // Override weakSpot with boss-specific multipliers
+    if (this.weakSpot && config.weakSpot) {
+      this.weakSpot.kineticMultiplier = config.weakSpot.kineticMultiplier;
+      this.weakSpot.fluxMultiplier = config.weakSpot.fluxMultiplier;
+      this.weakSpot.thermalMultiplier = config.weakSpot.thermalMultiplier;
+    }
+    
     // Make boss larger and more intimidating
     this.mesh.scale.set(2, 2, 2);
     
@@ -51,10 +63,13 @@ export class Boss extends Enemy {
     this.mesh.material.color.setHex(0xff0000); // Red
     this.originalColor = new THREE.Color(0xff0000);
     
-    // Boss shield effect
+    // Boss shield effect - boost shield HP
     if (this.shield) {
       this.shield.material.color.setHex(0xff00ff); // Purple shield
       this.shield.material.emissive.setHex(0x880088);
+      // Increase boss shield HP from 100 to 250
+      this.shieldHp = 250;
+      this.maxShieldHp = 250;
     }
     
     // Create boss health bar UI
@@ -68,54 +83,168 @@ export class Boss extends Enemy {
     bossHpDiv.id = 'boss-health-bar';
     bossHpDiv.innerHTML = `
       <div class="boss-nameplate">${this.bossConfig.name}</div>
+      <div class="boss-shield-container" style="margin-bottom: 5px;">
+        <div class="boss-shield-fill" style="width: 100%; background: linear-gradient(90deg, #0088ff, #00ccff); height: 8px;"></div>
+      </div>
+      <div class="boss-shield-text" style="font-size: 12px; color: #00ccff; margin-bottom: 8px;">${this.shieldHp} / ${this.maxShieldHp} SHIELD</div>
       <div class="boss-hp-container">
         <div class="boss-hp-fill" style="width: 100%;"></div>
       </div>
-      <div class="boss-hp-text">${this.hp} / ${this.maxHp}</div>
+      <div class="boss-hp-text">${this.hp} / ${this.maxHp} HP</div>
     `;
     document.body.appendChild(bossHpDiv);
   }
   
+  // ====================================
+  // BOSS DAMAGE SYSTEM - Clean Refactor
+  // ====================================
+  
   takeDamage(amount, type = 'kinetic', isCritical = false) {
     if (this.isDead) return;
     
-    // Use boss-specific weaknesses
-    const weakness = this.bossConfig.weaknesses[type] || 1.0;
-    const finalDamage = amount * weakness;
-    
-    this.hp -= finalDamage;
-    this.hp = Math.max(0, this.hp);
-    
-    // Visual feedback - call parent class methods from Enemy
-    if (isCritical) {
-      super.flashColor(0xffff00, 0.5);
-      super.showDamageNumber(Math.floor(finalDamage), 0xffff00, true);
-    } else {
-      const isEffective = weakness >= 1.0;
-      super.showDamageFlash(isEffective);
-      super.showDamageNumber(finalDamage, isEffective, false);
+    // Shield absorbs damage if active
+    if (this.hasActiveShield()) {
+      this.damageShield(amount, type);
+      return;
     }
     
-    // Update boss health bar
+    // Calculate final damage
+    const damageInfo = this.calculateDamage(amount, type, isCritical);
+    
+    // Apply to HP
+    this.applyDamage(damageInfo.final);
+    
+    // Visual feedback
+    this.showDamageFeedback(damageInfo, type, isCritical);
+    
+    // Update UI
     this.updateBossHealthBar();
     
-    console.log(`Boss HP: ${Math.round(this.hp)}/${this.maxHp} (${type} x${weakness}${isCritical ? ' CRIT' : ''})`);
-    
+    // Check death
     if (this.hp <= 0) {
       this.die();
     }
   }
   
-  updateBossHealthBar() {
-    const percent = (this.hp / this.maxHp) * 100;
-    const fill = document.querySelector('.boss-hp-fill');
-    const text = document.querySelector('.boss-hp-text');
+  // ---- Shield System ----
+  
+  hasActiveShield() {
+    return this.hasShield && 
+           !this.shieldBroken && 
+           this.shieldHp > 0;
+  }
+  
+  damageShield(amount, type) {
+    const resistance = this.getShieldResistance(type);
+    const damage = amount * resistance;
     
-    if (fill) {
-      fill.style.width = `${percent}%`;
+    this.shieldHp = Math.max(0, this.shieldHp - damage);
+    
+    this.updateShieldVisuals();
+    this.showShieldDamageFeedback(damage, type, resistance >= 1.0);
+    
+    if (this.shieldHp <= 0) {
+      this.breakShield();
     }
-    if (text) {
-      text.textContent = `${Math.round(this.hp)} / ${this.maxHp}`;
+  }
+  
+  getShieldResistance(type) {
+    const resistances = {
+      'flux': 1.0,
+      'kinetic': 0.1,
+      'thermal': 0.1
+    };
+    return resistances[type] || 0.1;
+  }
+  
+  updateShieldVisuals() {
+    if (!this.shield) return;
+    
+    const percent = this.shieldHp / this.maxShieldHp;
+    this.shield.material.opacity = 0.3 * percent;
+    this.shield.material.emissiveIntensity = 0.5 * percent;
+  }
+  
+  // ---- Damage Calculation ----
+  
+  calculateDamage(baseAmount, type, isCritical) {
+    const weakness = this.bossConfig.weaknesses[type] || 1.0;
+    const critMultiplier = isCritical ? (this.bossConfig.critMultiplier || 1.5) : 1.0;
+    
+    const finalDamage = baseAmount * weakness * critMultiplier;
+    
+    return {
+      base: baseAmount,
+      weakness: weakness,
+      critMultiplier: critMultiplier,
+      final: finalDamage
+    };
+  }
+  
+  applyDamage(amount) {
+    this.hp = Math.max(0, this.hp - amount);
+  }
+  
+  // ---- Visual Feedback ----
+  
+  showDamageFeedback(damageInfo, type, isCritical) {
+    if (isCritical) {
+      this.showCriticalFeedback(damageInfo.final);
+    } else {
+      this.showNormalFeedback(damageInfo.final, damageInfo.weakness >= 1.0);
+    }
+  }
+  
+  showCriticalFeedback(amount) {
+    super.flashColor(0xffff00, 0.5);
+    super.showDamageNumber(Math.floor(amount), 0xffff00, true);
+  }
+  
+  showNormalFeedback(amount, isEffective) {
+    const flashColor = isEffective ? 0xff0000 : 0x666666;
+    const flashIntensity = isEffective ? 0.3 : 0.15;
+    const numberColor = isEffective ? 0xffffff : 0x888888;
+    
+    super.flashColor(flashColor, flashIntensity);
+    super.showDamageNumber(Math.floor(amount), numberColor, false);
+  }
+  
+  showShieldDamageFeedback(amount, type, isEffective) {
+    super.flashColor(0x00aaff, isEffective ? 0.4 : 0.2);
+    super.showDamageNumber(
+      Math.floor(amount), 
+      isEffective ? 0x00aaff : 0x888888, 
+      false
+    );
+  }
+  
+  updateBossHealthBar() {
+    const hpPercent = (this.hp / this.maxHp) * 100;
+    const hpFill = document.querySelector('.boss-hp-fill');
+    const hpText = document.querySelector('.boss-hp-text');
+    
+    if (hpFill) {
+      hpFill.style.width = `${hpPercent}%`;
+    }
+    if (hpText) {
+      hpText.textContent = `${Math.round(this.hp)} / ${this.maxHp} HP`;
+    }
+    
+    // Update shield bar
+    const shieldPercent = (this.shieldHp / this.maxShieldHp) * 100;
+    const shieldFill = document.querySelector('.boss-shield-fill');
+    const shieldText = document.querySelector('.boss-shield-text');
+    
+    if (shieldFill) {
+      shieldFill.style.width = `${shieldPercent}%`;
+      // Hide shield bar if broken
+      if (this.shieldBroken) {
+        shieldFill.parentElement.style.display = 'none';
+        if (shieldText) shieldText.style.display = 'none';
+      }
+    }
+    if (shieldText && !this.shieldBroken) {
+      shieldText.textContent = `${Math.round(this.shieldHp)} / ${this.maxShieldHp} SHIELD`;
     }
   }
   

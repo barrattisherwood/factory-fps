@@ -143,21 +143,26 @@ export class WaveManager {
   spawnWave() {
     const config = this.waveConfigs[this.currentWave - 1];
     
+    // Reset player position between waves
+    this.game.player.resetPosition();
+    
     // Clear existing enemies
     this.game.clearEnemies();
     
-    // Spawn standard robots
+    // Spawn standard robots in front (facing -Z direction, 180° to 360°)
     for (let i = 0; i < config.standard; i++) {
-      const angle = (Math.PI * 2 / (config.standard + config.shielded)) * i;
+      const spreadAngle = Math.PI / (config.standard + 1); // Spread across front 180°
+      const angle = Math.PI + spreadAngle * (i + 1); // 180° to 360° (front arc)
       const radius = 30 + Math.random() * 10;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       this.game.spawnEnemy(x, z, 'standard');
     }
     
-    // Spawn shielded robots
+    // Spawn shielded robots behind/sides (0° to 180°)
     for (let i = 0; i < config.shielded; i++) {
-      const angle = (Math.PI * 2 / (config.standard + config.shielded)) * (i + config.standard);
+      const spreadAngle = Math.PI / (config.shielded + 1); // Spread across back 180°
+      const angle = spreadAngle * (i + 1); // 0° to 180° (back arc)
       const radius = 30 + Math.random() * 10;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;

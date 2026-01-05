@@ -16,6 +16,7 @@ import { MenuManager } from './managers/MenuManager.js';
 import { RunManager } from './managers/RunManager.js';
 import { UnlockManager } from './managers/UnlockManager.js';
 import { PersistentStats } from './managers/PersistentStats.js';
+import { NotificationManager } from './managers/NotificationManager.js';
 
 export class Game {
   constructor(scene, camera) {
@@ -46,6 +47,7 @@ export class Game {
     this.runManager = new RunManager(this);
     this.unlockManager = new UnlockManager(this.events);
     this.persistentStats = new PersistentStats();
+    this.notificationManager = new NotificationManager();
     
     // Phase 9: Wire unlock manager to resource manager
     this.resourceManager.setUnlockManager(this.unlockManager);
@@ -95,6 +97,11 @@ export class Game {
     // Create player
     this.player = new Player(this.camera, this);
     this.scene.add(this.player.getGroup());
+
+    // Tutorial tracking
+    this.tutorialState = {
+      shownShieldTutorial: false
+    };
 
     // Create UI (pass eventBus for listening to events)
     this.ui = new UI(this.events);
@@ -215,6 +222,7 @@ export class Game {
     this.statsManager.reset();
     this.waveManager.reset();
     this.player.resetHealth();
+    this.player.resetPosition();
     this.clearEnemies();
     this.clearOrbs();
     
@@ -414,7 +422,7 @@ export class Game {
           console.log(`Collecting orb: ${orb.resourceType} → ${ammoType} (+${ammoAmount})`);
           
           // Show pickup notification
-          this.showPickupNotification(orb.resourceType, ammoAmount, orb.config);
+          this.notificationManager.showPickup(orb.resourceType, ammoAmount, orb.config);
           
           // Route collection through ResourceManager so factory receives it
           this.resourceManager.collectResource(orb.resourceType, ammoAmount);
@@ -444,6 +452,7 @@ export class Game {
   startRun() {
     // Reset player and systems
     this.player.resetHealth();
+    this.player.resetPosition();
     this.clearEnemies();
     this.clearOrbs();
     
@@ -512,48 +521,6 @@ export class Game {
     this.runManager.currentRun = null;
     
     this.stateManager.changeState('HUB');
-  }
-  
-  showPickupNotification(resourceType, amount, config) {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = 'pickup-notification';
-    
-    // Get resource color from config
-    const color = config ? `#${config.color.toString(16).padStart(6, '0')}` : '#ffffff';
-    
-    // Format resource name (capitalize first letter)
-    const resourceName = resourceType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    
-    notification.innerHTML = `
-      <span class="pickup-amount" style="color: ${color}">+${amount}</span>
-      <span class="pickup-type">${resourceName}</span>
-    `;
-    
-    // Add to container or create one
-    let container = document.getElementById('pickup-notifications');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'pickup-notifications';
-      document.body.appendChild(container);
-    }
-    
-    container.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-      notification.classList.add('show');
-    }, 10);
-    
-    // Remove after animation
-    setTimeout(() => {
-      notification.classList.remove('show');
-      setTimeout(() => {
-        if (notification.parentElement) {
-          notification.remove();
-        }
-      }, 300);
-    }, 2000);
   }
   
   restartRun() {
