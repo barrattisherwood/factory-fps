@@ -40,7 +40,7 @@ export class MenuUI {
 
     // Title
     const title = document.createElement('h1');
-    title.textContent = 'FPS FACTORY';
+    title.textContent = 'BULLET FORGE';
     Object.assign(title.style, {
       fontSize: '72px',
       color: '#00ffcc',
@@ -239,7 +239,7 @@ export class MenuUI {
 
     const info = document.createElement('div');
     info.innerHTML = `
-      <p style="font-size: 20px; margin-bottom: 20px;">FPS Factory Prototype</p>
+      <p style="font-size: 20px; margin-bottom: 20px;">Bullet Forge</p>
       <p style="font-size: 16px; margin-bottom: 10px; color: #888;">Developed by: Your Name</p>
       <p style="font-size: 16px; margin-bottom: 10px; color: #888;">Built with: Three.js & Vite</p>
       <p style="font-size: 16px; margin-bottom: 10px; color: #888;">Created: December 2025</p>
