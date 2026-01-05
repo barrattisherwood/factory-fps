@@ -18,6 +18,24 @@ import { UnlockManager } from './managers/UnlockManager.js';
 import { PersistentStats } from './managers/PersistentStats.js';
 import { NotificationManager } from './managers/NotificationManager.js';
 
+// Player spawn configuration per game state
+const SPAWN_CONFIG = {
+  hub: {
+    position: new THREE.Vector3(0, 1.7, 0),
+    facing: 0  // Face forward
+  },
+  
+  playing: {
+    position: new THREE.Vector3(0, 1.7, 0),
+    facing: Math.PI  // Face toward enemies (backward)
+  },
+  
+  boss: {
+    position: new THREE.Vector3(0, 1.7, 0),
+    facing: 0  // Face forward toward boss
+  }
+};
+
 export class Game {
   constructor(scene, camera) {
     this.scene = scene;
@@ -222,7 +240,11 @@ export class Game {
     this.statsManager.reset();
     this.waveManager.reset();
     this.player.resetHealth();
-    this.player.resetPosition();
+    
+    // Reset player position with spawn config
+    const spawn = SPAWN_CONFIG.playing;
+    this.player.resetPosition(spawn.position, spawn.facing);
+    
     this.clearEnemies();
     this.clearOrbs();
     
@@ -452,7 +474,11 @@ export class Game {
   startRun() {
     // Reset player and systems
     this.player.resetHealth();
-    this.player.resetPosition();
+    
+    // Reset player position with spawn config
+    const spawn = SPAWN_CONFIG.playing;
+    this.player.resetPosition(spawn.position, spawn.facing);
+    
     this.clearEnemies();
     this.clearOrbs();
     
@@ -490,9 +516,18 @@ export class Game {
     setTimeout(() => {
       this.boss = new Boss('fluxWarden');
       
-      // Position the boss
-      const bossSpawnPos = { x: 0, y: 1, z: -50 };
+      // Position the boss ahead of player (on ground, facing player)
+      // Boss mesh is 3 units tall, scaled 2x = 6 units total height
+      // Box geometry centered at origin, so y=3 puts bottom at ground level
+      const bossSpawnPos = { x: 0, y: 3, z: -40 };
       this.boss.position.set(bossSpawnPos.x, bossSpawnPos.y, bossSpawnPos.z);
+      
+      // Immediately sync mesh position (before first update() call)
+      this.boss.mesh.position.copy(this.boss.position);
+      
+      console.log('Boss spawned at:', this.boss.position);
+      console.log('Boss mesh at:', this.boss.mesh.position);
+      console.log('Boss mesh scale:', this.boss.mesh.scale);
       
       // Set death callback
       this.boss.onDeath = (orbs) => {
@@ -510,6 +545,19 @@ export class Game {
       this.stateManager.changeState('BOSS_FIGHT');
       this.menuManager.hideAll();
       this.menuManager.showHUD();
+      
+      // Reset player position for boss fight
+      const bossSpawn = SPAWN_CONFIG.boss;
+      this.player.resetPosition(bossSpawn.position, bossSpawn.facing, () => {
+        // Lock pointer after position is set
+        if (this.player && this.player.lock) {
+          this.player.lock();
+        }
+        
+        // Log player position for debugging
+        console.log('Player spawned at:', this.player.controls.getObject().position);
+        console.log('Player facing:', this.player.controls.euler.y, 'rad');
+      });
     }, 3000);
   }
   

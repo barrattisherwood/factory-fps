@@ -143,8 +143,10 @@ export class WaveManager {
   spawnWave() {
     const config = this.waveConfigs[this.currentWave - 1];
     
-    // Reset player position between waves
-    this.game.player.resetPosition();
+    // Reset player position between waves (facing enemies)
+    const spawnPos = new THREE.Vector3(0, 1.7, 0);
+    const spawnFacing = Math.PI; // Face backward toward enemy spawn area
+    this.game.player.resetPosition(spawnPos, spawnFacing);
     
     // Clear existing enemies
     this.game.clearEnemies();

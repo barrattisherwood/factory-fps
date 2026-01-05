@@ -56,6 +56,9 @@ export class RunManager {
     this.runNumber++;
     this.levelCompleteShown = false; // Initialize flag
     
+    // Reset player health for new run
+    this.game.player.resetHealth();
+    
     // Remove any lingering level complete overlays
     const existingOverlay = document.getElementById('level-complete-overlay');
     if (existingOverlay) {
@@ -107,6 +110,16 @@ export class RunManager {
     // Clear existing enemies
     this.game.clearEnemies();
     this.game.clearOrbs();
+    
+    // Reset player position for the new level
+    const spawnPos = new THREE.Vector3(0, 1.7, 0);
+    const spawnFacing = Math.PI; // Face backward toward enemies
+    this.game.player.resetPosition(spawnPos, spawnFacing, () => {
+      // Lock pointer after position is set
+      if (this.game.player && this.game.player.lock) {
+        this.game.player.lock();
+      }
+    });
     
     // Clean up any lingering boss HP bar
     const bossHpBar = document.getElementById('boss-health-bar');

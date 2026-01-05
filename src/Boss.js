@@ -143,6 +143,9 @@ export class Boss extends Enemy {
     this.updateShieldVisuals();
     this.showShieldDamageFeedback(damage, type, resistance >= 1.0);
     
+    // Update boss health bar (includes shield bar)
+    this.updateBossHealthBar();
+    
     if (this.shieldHp <= 0) {
       this.breakShield();
     }
@@ -448,8 +451,23 @@ export class Boss extends Enemy {
     // Call parent update for animations
     super.update(timeScale);
     
-    // Boss doesn't move yet (MVP)
-    // Future: Add chase behavior or attack patterns
+    // Boss chases player
+    if (!this.isDead && window.game && window.game.player) {
+      const playerPos = window.game.player.camera.getWorldPosition(new THREE.Vector3());
+      const direction = new THREE.Vector3().subVectors(playerPos, this.position);
+      direction.y = 0; // Only move on horizontal plane
+      direction.normalize();
+      
+      // Move towards player (slower than regular enemies due to size)
+      const moveSpeed = this.bossConfig.speed * 0.015 * timeScale; // Slower movement
+      this.position.add(direction.multiplyScalar(moveSpeed));
+      this.mesh.position.copy(this.position);
+      
+      // Update weak spot position if it exists
+      if (this.weakSpot && this.weakSpot.worldPosition && this.weakSpotMesh) {
+        this.weakSpotMesh.getWorldPosition(this.weakSpot.worldPosition);
+      }
+    }
   }
   
   checkPlayerCollision(player) {

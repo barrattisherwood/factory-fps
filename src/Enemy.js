@@ -397,7 +397,7 @@ export class Enemy {
     const scene = this.mesh.parent.parent || this.mesh.parent;
     if (!scene || !scene.add) return;
     
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       const particle = this.createDeathParticle();
       scene.add(particle);
       
@@ -429,10 +429,10 @@ export class Enemy {
     const gravity = -9.8;
     
     const interval = setInterval(() => {
-      velocity.y += gravity * 0.016;
-      particle.position.add(velocity.clone().multiplyScalar(0.016));
+      velocity.y += gravity * 0.033; // Larger time step
+      particle.position.add(velocity.clone().multiplyScalar(0.033));
       
-      life -= 0.05;
+      life -= 0.1; // Faster decay
       particle.material.opacity = life;
       particle.material.transparent = true;
       
@@ -442,7 +442,7 @@ export class Enemy {
         particle.material.dispose();
         clearInterval(interval);
       }
-    }, 16);
+    }, 33); // Update every 33ms instead of 16ms
   }
 
   getMesh() {

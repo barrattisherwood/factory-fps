@@ -503,26 +503,58 @@ export class Player {
     this.isInvulnerable = false;
   }
 
-  resetPosition() {
-    // PointerLockControls manages both position and rotation through its object
+  resetPosition(position = null, facing = null, callback = null) {
+    // Unlock pointer first to ensure clean state
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+    
+    // Default spawn position and direction
+    const spawnPos = position || new THREE.Vector3(0, this.eyeHeight, 0);
+    const spawnFacing = facing !== null ? facing : 0; // 0 = forward (+Z), Math.PI = backward (-Z)
+    
+    // Reset velocity first
+    this.velocity.set(0, 0, 0);
+    
+    // PointerLockControls wraps the camera - only set position on controls object
     if (this.controls && this.controls.getObject) {
       const controlsObject = this.controls.getObject();
       
-      // Set position
-      controlsObject.position.set(0, 1.7, 0);
+      // Set position (controls object, NOT camera)
+      controlsObject.position.copy(spawnPos);
       
-      // Reset rotation through controls' internal Euler
-      // The controls.euler property controls the camera's look direction
-      this.controls.euler.x = 0; // Pitch (up/down) - level
-      this.controls.euler.y = Math.PI; // Yaw (left/right) - face 180 degrees
-      this.controls.euler.z = 0; // Roll - no tilt
+      // Reset camera's LOCAL position to zero (it's a child of controls object)
+      this.camera.position.set(0, 0, 0);
+      
+      // Reset rotation using euler
+      this.controls.euler.x = 0; // Pitch
+      this.controls.euler.y = spawnFacing; // Yaw
+      this.controls.euler.z = 0; // Roll
+    } else {
+      // Fallback if controls not initialized
+      this.camera.position.copy(spawnPos);
+      this.camera.rotation.set(0, spawnFacing, 0);
     }
     
-    // Also set camera directly as fallback
-    this.camera.position.set(0, 1.7, 0);
+    // Reset grounded state
+    this.isGrounded = true;
+    this.canJump = true;
+    this.spacePressed = false;
     
-    // Reset velocity
-    this.velocity.set(0, 0, 0);
+    console.log(`Player reset to position: ${spawnPos.toArray()}, facing: ${spawnFacing.toFixed(2)} rad`);
+    
+    // Execute callback if provided
+    if (callback && typeof callback === 'function') {
+      callback();
+    }
+  }
+  
+  logPosition() {
+    const controlsObj = this.controls.getObject();
+    console.log('Controls Object Position:', controlsObj.position.toArray());
+    console.log('Camera Position:', this.camera.position.toArray());
+    console.log('Camera Rotation:', this.camera.rotation.toArray());
+    console.log('Controls Euler:', [this.controls.euler.x, this.controls.euler.y, this.controls.euler.z]);
   }
   
   getHealthPercent() {
