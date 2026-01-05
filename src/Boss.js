@@ -262,6 +262,26 @@ export class Boss extends Enemy {
       bossHpBar.remove();
     }
     
+    // Clean up shield before anything else
+    if (this.shield) {
+      if (this.mesh) {
+        this.mesh.remove(this.shield);
+      }
+      this.shield.geometry.dispose();
+      this.shield.material.dispose();
+      this.shield = null;
+    }
+    
+    // Clean up shield wireframe
+    if (this.shieldWireframe) {
+      if (this.mesh) {
+        this.mesh.remove(this.shieldWireframe);
+      }
+      this.shieldWireframe.geometry.dispose();
+      this.shieldWireframe.material.dispose();
+      this.shieldWireframe = null;
+    }
+    
     // Play dramatic death effect
     this.playBossDeathEffect();
     
